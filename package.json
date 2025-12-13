@@ -6,12 +6,26 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
+    "@prisma/client": "^7.1.0",
+    "@uploadthing/react": "^7.3.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.561.0",
     "next": "16.0.10",
+    "next-auth": "^5.0.0-beta.30",
     "react": "19.2.1",
-    "react-dom": "19.2.1"
+    "react-dom": "19.2.1",
+    "recharts": "^3.5.1",
+    "resend": "^6.6.0",
+    "stripe": "^20.0.0",
+    "tailwind-merge": "^3.4.0",
+    "zod": "^4.1.13",
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -20,7 +34,10 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.0.10",
+    "prettier": "^3.7.4",
+    "prisma": "^7.1.0",
     "tailwindcss": "^4",
+    "tailwindcss-animate": "^1.0.7",
     "typescript": "^5"
   }
 }
