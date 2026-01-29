@@ -8,6 +8,18 @@ import { prisma } from "@/db/prisma";
 import { compare, hash } from "bcryptjs";
 import { UserRole } from "@prisma/client";
 
+// Validate required environment variables
+if (!process.env.NEXTAUTH_SECRET) {
+  console.error("⚠️  NEXTAUTH_SECRET is not set. Authentication will not work.");
+  console.error("Please set NEXTAUTH_SECRET in your environment variables.");
+  console.error("Generate one with: openssl rand -base64 32");
+}
+
+if (!process.env.NEXTAUTH_URL && process.env.NODE_ENV === "production") {
+  console.warn("⚠️  NEXTAUTH_URL is not set. This may cause issues in production.");
+  console.warn("Please set NEXTAUTH_URL to your production URL (e.g., https://fast-keep.vercel.app)");
+}
+
 export const authOptions = {
   adapter: PrismaAdapter(prisma) as any,
   providers: [
@@ -114,6 +126,7 @@ export const authOptions = {
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV === "development",
 };
 
 // Password hashing utility
