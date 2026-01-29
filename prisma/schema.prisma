@@ -116,6 +116,7 @@ model Customer {
   shippingAddress Json? // { street, city, state, zip, country }
   paymentTerms    String?  @default("Net 30") // Net 15, Net 30, Net 60, etc.
   creditLimit     Decimal? @default(0) @db.Decimal(10, 2)
+  prepaidCredit   Decimal? @default(0) @db.Decimal(10, 2) // Manual prepaid credit/adjustment
   taxId           String?
   notes           String?
   createdAt       DateTime  @default(now())
@@ -259,6 +260,7 @@ enum PaymentMethod {
   CHECK
   CREDIT_CARD
   BANK_TRANSFER
+  PREPAID_CREDIT
   OTHER
 }
 

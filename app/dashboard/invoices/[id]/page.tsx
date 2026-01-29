@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -84,6 +85,7 @@ interface Invoice {
     date: string;
     method: PaymentMethod;
     reference: string | null;
+    notes: string | null;
   }>;
   paidAmount: number;
   remainingAmount: number;
@@ -96,6 +98,15 @@ export default function InvoiceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isEditPaymentDialogOpen, setIsEditPaymentDialogOpen] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<{
+    id: string;
+    amount: number;
+    date: string;
+    method: PaymentMethod;
+    reference: string | null;
+    notes: string | null;
+  } | null>(null);
   const [paymentData, setPaymentData] = useState<{
     amount: string;
     date: string;
@@ -182,6 +193,49 @@ export default function InvoiceDetailPage() {
   const handleEditSuccess = () => {
     setIsEditDialogOpen(false);
     fetchInvoice();
+  };
+
+  const handleEditPayment = (payment: any) => {
+    setEditingPayment({
+      id: payment.id,
+      amount: Number(payment.amount),
+      date: new Date(payment.date).toISOString().split("T")[0],
+      method: payment.method,
+      reference: payment.reference,
+      notes: payment.notes,
+    });
+    setIsEditPaymentDialogOpen(true);
+  };
+
+  const handleUpdatePayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPayment) return;
+
+    try {
+      const response = await fetch(`/api/payments/${editingPayment.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: editingPayment.amount,
+          date: editingPayment.date,
+          method: editingPayment.method,
+          reference: editingPayment.reference || "",
+          notes: editingPayment.notes || "",
+        }),
+      });
+
+      if (response.ok) {
+        setIsEditPaymentDialogOpen(false);
+        setEditingPayment(null);
+        fetchInvoice();
+      } else {
+        const data = await response.json();
+        alert(data.error || "Failed to update payment");
+      }
+    } catch (error) {
+      console.error("Error updating payment:", error);
+      alert("Failed to update payment");
+    }
   };
 
   const handleDownloadPDF = async () => {
@@ -458,15 +512,13 @@ export default function InvoiceDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          {invoice.status !== InvoiceStatus.PAID && (
-            <Button
-              variant="outline"
-              onClick={() => setIsEditDialogOpen(true)}
-            >
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit Invoice
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            onClick={() => setIsEditDialogOpen(true)}
+          >
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit Invoice
+          </Button>
           <Button variant="outline">
             <Mail className="mr-2 h-4 w-4" />
             Send Email
@@ -705,6 +757,7 @@ export default function InvoiceDetailPage() {
                   <TableHead>Method</TableHead>
                   <TableHead>Reference</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -717,6 +770,15 @@ export default function InvoiceDetailPage() {
                     <TableCell>{payment.reference || "-"}</TableCell>
                     <TableCell className="text-right">
                       ${Number(payment.amount).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEditPayment(payment)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -751,23 +813,38 @@ export default function InvoiceDetailPage() {
                 <form onSubmit={handleRecordPayment} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="amount">Amount *</Label>
-                    <Input
-                      id="amount"
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      max={invoice.remainingAmount}
-                      value={paymentData.amount}
-                      onChange={(e) =>
-                        setPaymentData({
-                          ...paymentData,
-                          amount: e.target.value,
-                        })
-                      }
-                      required
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        id="amount"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        max={invoice.remainingAmount}
+                        value={paymentData.amount}
+                        onChange={(e) =>
+                          setPaymentData({
+                            ...paymentData,
+                            amount: e.target.value,
+                          })
+                        }
+                        required
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                          setPaymentData({
+                            ...paymentData,
+                            amount: invoice.total.toString(),
+                          })
+                        }
+                      >
+                        Whole Amount
+                      </Button>
+                    </div>
                     <p className="text-xs text-muted-foreground">
-                      Remaining: ${invoice.remainingAmount.toLocaleString()}
+                      Remaining: ${invoice.remainingAmount.toLocaleString()} | Total: ${invoice.total.toLocaleString()}
                     </p>
                   </div>
                   <div className="space-y-2">
@@ -808,6 +885,9 @@ export default function InvoiceDetailPage() {
                         <SelectItem value={PaymentMethod.BANK_TRANSFER}>
                           Bank Transfer
                         </SelectItem>
+                        <SelectItem value={PaymentMethod.PREPAID_CREDIT}>
+                          Prepaid Credit
+                        </SelectItem>
                         <SelectItem value={PaymentMethod.OTHER}>Other</SelectItem>
                       </SelectContent>
                     </Select>
@@ -840,6 +920,142 @@ export default function InvoiceDetailPage() {
             </Dialog>
           </CardContent>
         </Card>
+      )}
+
+      {/* Edit Payment Dialog */}
+      {editingPayment && (
+        <Dialog
+          open={isEditPaymentDialogOpen}
+          onOpenChange={setIsEditPaymentDialogOpen}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Payment</DialogTitle>
+              <DialogDescription>
+                Update payment information
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleUpdatePayment} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-amount">Amount *</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="edit-amount"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={editingPayment.amount}
+                    onChange={(e) =>
+                      setEditingPayment({
+                        ...editingPayment,
+                        amount: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    required
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      setEditingPayment({
+                        ...editingPayment,
+                        amount: invoice.total,
+                      })
+                    }
+                  >
+                    Whole Amount
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Invoice Total: ${invoice.total.toLocaleString()}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-date">Date *</Label>
+                <Input
+                  id="edit-date"
+                  type="date"
+                  value={editingPayment.date}
+                  onChange={(e) =>
+                    setEditingPayment({
+                      ...editingPayment,
+                      date: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-method">Payment Method *</Label>
+                <Select
+                  value={editingPayment.method}
+                  onValueChange={(value) =>
+                    setEditingPayment({
+                      ...editingPayment,
+                      method: value as PaymentMethod,
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={PaymentMethod.CASH}>Cash</SelectItem>
+                    <SelectItem value={PaymentMethod.CHECK}>Check</SelectItem>
+                    <SelectItem value={PaymentMethod.CREDIT_CARD}>
+                      Credit Card
+                    </SelectItem>
+                    <SelectItem value={PaymentMethod.BANK_TRANSFER}>
+                      Bank Transfer
+                    </SelectItem>
+                    <SelectItem value={PaymentMethod.OTHER}>Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-reference">Reference</Label>
+                <Input
+                  id="edit-reference"
+                  value={editingPayment.reference || ""}
+                  onChange={(e) =>
+                    setEditingPayment({
+                      ...editingPayment,
+                      reference: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-notes">Notes</Label>
+                <Textarea
+                  id="edit-notes"
+                  value={editingPayment.notes || ""}
+                  onChange={(e) =>
+                    setEditingPayment({
+                      ...editingPayment,
+                      notes: e.target.value,
+                    })
+                  }
+                  rows={3}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsEditPaymentDialogOpen(false);
+                    setEditingPayment(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit">Update Payment</Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Notes and Terms */}

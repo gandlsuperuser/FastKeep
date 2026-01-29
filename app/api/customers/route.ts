@@ -24,6 +24,7 @@ const customerSchema = z.object({
   }).optional(),
   paymentTerms: z.string().optional(),
   creditLimit: z.number().optional(),
+  prepaidCredit: z.number().optional(),
   taxId: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -112,6 +113,7 @@ export async function POST(request: Request) {
         shippingAddress: validatedData.shippingAddress || Prisma.JsonNull,
         paymentTerms: validatedData.paymentTerms || "Net 30",
         creditLimit: validatedData.creditLimit || 0,
+        prepaidCredit: validatedData.prepaidCredit !== undefined ? validatedData.prepaidCredit : 0,
         taxId: validatedData.taxId || null,
         notes: validatedData.notes || null,
       },

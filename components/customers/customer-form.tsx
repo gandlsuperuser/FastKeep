@@ -34,6 +34,7 @@ interface Customer {
   } | null;
   paymentTerms?: string | null;
   creditLimit?: number | null;
+  prepaidCredit?: number | null;
   taxId?: string | null;
   notes?: string | null;
 }
@@ -67,6 +68,7 @@ export function CustomerForm({ customer, onSuccess, onCancel }: CustomerFormProp
     },
     paymentTerms: customer?.paymentTerms || "Net 30",
     creditLimit: customer?.creditLimit?.toString() || "",
+    prepaidCredit: customer?.prepaidCredit?.toString() || "",
     taxId: customer?.taxId || "",
     notes: customer?.notes || "",
   });
@@ -85,6 +87,9 @@ export function CustomerForm({ customer, onSuccess, onCancel }: CustomerFormProp
       const payload = {
         ...formData,
         creditLimit: formData.creditLimit ? parseFloat(formData.creditLimit) : undefined,
+        prepaidCredit: formData.prepaidCredit && formData.prepaidCredit.trim() !== "" 
+          ? parseFloat(formData.prepaidCredit) 
+          : 0,
         billingAddress: Object.values(formData.billingAddress).some(v => v)
           ? formData.billingAddress
           : undefined,
@@ -102,7 +107,9 @@ export function CustomerForm({ customer, onSuccess, onCancel }: CustomerFormProp
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Failed to save customer");
+        const errorMsg = data.error || "Failed to save customer";
+        const details = data.details ? `: ${data.details}` : "";
+        setError(`${errorMsg}${details}`);
         setLoading(false);
         return;
       }
@@ -375,6 +382,19 @@ export function CustomerForm({ customer, onSuccess, onCancel }: CustomerFormProp
               onChange={(e) =>
                 setFormData({ ...formData, creditLimit: e.target.value })
               }
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="prepaidCredit">Prepaid Credit</Label>
+            <Input
+              id="prepaidCredit"
+              type="number"
+              step="0.01"
+              value={formData.prepaidCredit}
+              onChange={(e) =>
+                setFormData({ ...formData, prepaidCredit: e.target.value })
+              }
+              placeholder="Manual prepaid credit/adjustment"
             />
           </div>
         </div>

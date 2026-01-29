@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth-utils";
 import { prisma } from "@/db/prisma";
-import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 const customerSchema = z.object({
@@ -24,6 +23,7 @@ const customerSchema = z.object({
   }).optional(),
   paymentTerms: z.string().optional(),
   creditLimit: z.number().optional(),
+  prepaidCredit: z.number().optional(),
   taxId: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -64,19 +64,42 @@ export async function GET(
         { status: 404 }
       );
     }
-
-    // Calculate outstanding balance
-    const outstandingInvoices = customer.invoices.filter(
-      (inv) => inv.status !== "PAID" && inv.status !== "CANCELLED"
-    );
-    const outstandingBalance = outstandingInvoices.reduce(
-      (sum, inv) => sum + Number(inv.total),
+    // Calculate financial details
+    const totalInvoices = customer.invoices.reduce(
+      (sum: number, inv: any) => sum + Number(inv.total),
       0
     );
+
+    const totalPaid = customer.invoices.reduce((sum: number, inv: any) => {
+      const invoicePaid = inv.payments.reduce(
+        (pSum: number, p: any) => pSum + Number(p.amount),
+        0
+      );
+      return sum + invoicePaid;
+    }, 0);
+
+    // Calculate prepaid/credit amount from overpayments
+    const calculatedPrepaidCredit = Math.max(0, totalPaid - totalInvoices);
+    
+    // Get manual prepaid credit from customer record (default to 0 if null)
+    const manualPrepaidCredit = Number((customer as any).prepaidCredit || 0);
+    
+    // Total prepaid credit = calculated (from overpayments) + manual (user-set)
+    const prepaidCredit = calculatedPrepaidCredit + manualPrepaidCredit;
+
+    // Outstanding balance = total invoices - prepaid credit
+    // If result is positive, show as positive. If negative or zero, show as 0.
+    const balance = totalInvoices - prepaidCredit;
+    const outstandingBalance = balance > 0 ? balance : 0;
 
     return NextResponse.json({
       ...customer,
       outstandingBalance,
+      totalInvoices,
+      totalPaid,
+      prepaidCredit,
+      calculatedPrepaidCredit,
+      manualPrepaidCredit,
     });
   } catch (error) {
     console.error("Error fetching customer:", error);
@@ -117,32 +140,46 @@ export async function PUT(
       );
     }
 
+    // Prepare update data
+    const updateData: any = {
+      name: validatedData.name,
+      email: validatedData.email || null,
+      phone: validatedData.phone || null,
+        billingAddress: validatedData.billingAddress || null,
+        shippingAddress: validatedData.shippingAddress || null,
+      paymentTerms: validatedData.paymentTerms || "Net 30",
+      creditLimit: validatedData.creditLimit || 0,
+      taxId: validatedData.taxId || null,
+      notes: validatedData.notes || null,
+    };
+
+    // Handle prepaidCredit - set to 0 if undefined/null, otherwise use the value
+    // Prisma Decimal accepts number, string, or Decimal
+    if (validatedData.prepaidCredit !== undefined && validatedData.prepaidCredit !== null) {
+      updateData.prepaidCredit = validatedData.prepaidCredit;
+    } else {
+      updateData.prepaidCredit = 0;
+    }
+
     const customer = await prisma.customer.update({
       where: { id },
-      data: {
-        name: validatedData.name,
-        email: validatedData.email || null,
-        phone: validatedData.phone || null,
-        billingAddress: validatedData.billingAddress || Prisma.JsonNull,
-        shippingAddress: validatedData.shippingAddress || Prisma.JsonNull,
-        paymentTerms: validatedData.paymentTerms || "Net 30",
-        creditLimit: validatedData.creditLimit || 0,
-        taxId: validatedData.taxId || null,
-        notes: validatedData.notes || null,
-      },
+      data: updateData,
     });
 
     return NextResponse.json(customer);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: error.issues[0].message },
+        { error: error.issues[0].message, details: error.issues },
         { status: 400 }
       );
     }
     console.error("Error updating customer:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error("Error details:", errorMessage, errorStack);
     return NextResponse.json(
-      { error: "Failed to update customer" },
+      { error: "Failed to update customer", details: errorMessage },
       { status: 500 }
     );
   }

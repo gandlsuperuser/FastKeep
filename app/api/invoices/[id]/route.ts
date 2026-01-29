@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth-utils";
 import { prisma } from "@/db/prisma";
 import { z } from "zod";
-import { InvoiceStatus } from "@prisma/client";
+import { InvoiceStatus, PaymentMethod, PaymentStatus } from "@prisma/client";
 
 const invoiceItemSchema = z.object({
   productId: z.string().optional(),
@@ -113,6 +113,9 @@ export async function PUT(
         id: id,
         organizationId: user.organizationId,
       },
+      include: {
+        payments: true,
+      },
     });
 
     if (!existingInvoice) {
@@ -122,12 +125,30 @@ export async function PUT(
       );
     }
 
-    // Don't allow editing paid invoices
-    if (existingInvoice.status === InvoiceStatus.PAID) {
-      return NextResponse.json(
-        { error: "Cannot edit paid invoice" },
-        { status: 400 }
+    // Allow editing paid invoices in case payment didn't go through
+
+    // If status is being changed to PAID, automatically create payment if needed
+    if (validatedData.status === InvoiceStatus.PAID && existingInvoice.status !== InvoiceStatus.PAID) {
+      const totalPaid = existingInvoice.payments.reduce(
+        (sum, p) => sum + Number(p.amount),
+        0
       );
+      const invoiceTotal = Number(validatedData.total);
+      const remaining = invoiceTotal - totalPaid;
+
+      // If there's a remaining balance, create a payment for it
+      if (remaining > 0) {
+        await prisma.payment.create({
+          data: {
+            invoiceId: id,
+            amount: remaining,
+            date: new Date(),
+            method: PaymentMethod.CASH,
+            status: PaymentStatus.COMPLETED,
+            notes: "Auto-generated payment when invoice marked as paid",
+          },
+        });
+      }
     }
 
     // Update invoice
@@ -208,12 +229,58 @@ export async function PATCH(
       );
     }
 
+    // Fetch invoice with payments to check current state
+    const existingInvoice = await prisma.invoice.findFirst({
+      where: {
+        id: id,
+        organizationId: user.organizationId,
+      },
+      include: {
+        payments: true,
+      },
+    });
+
+    if (!existingInvoice) {
+      return NextResponse.json(
+        { error: "Invoice not found" },
+        { status: 404 }
+      );
+    }
+
+    // If status is being changed to PAID, automatically create payment if needed
+    if (status === InvoiceStatus.PAID && existingInvoice.status !== InvoiceStatus.PAID) {
+      const totalPaid = existingInvoice.payments.reduce(
+        (sum, p) => sum + Number(p.amount),
+        0
+      );
+      const invoiceTotal = Number(existingInvoice.total);
+      const remaining = invoiceTotal - totalPaid;
+
+      // If there's a remaining balance, create a payment for it
+      if (remaining > 0) {
+        await prisma.payment.create({
+          data: {
+            invoiceId: id,
+            amount: remaining,
+            date: new Date(),
+            method: PaymentMethod.CASH,
+            status: PaymentStatus.COMPLETED,
+            notes: "Auto-generated payment when invoice marked as paid",
+          },
+        });
+      }
+    }
+
+    // Update invoice status
     const invoice = await prisma.invoice.update({
       where: {
         id: id,
         organizationId: user.organizationId,
       },
       data: { status },
+      include: {
+        payments: true,
+      },
     });
 
     return NextResponse.json(invoice);
