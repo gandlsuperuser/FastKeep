@@ -36,6 +36,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (!user.organizationId) {
+      console.error("User has no organizationId:", user);
+      return NextResponse.json({ error: "User organization not found" }, { status: 400 });
+    }
+
     console.log("Fetching invoices for organizationId:", user.organizationId);
 
     const { searchParams } = new URL(request.url);
@@ -133,9 +138,15 @@ export async function GET(request: Request) {
 // POST - Create invoice
 export async function POST(request: Request) {
   try {
-    const user = await getCurrentUser();
+    const user = await getCurrentUser(request);
     if (!user) {
+      console.error("No user found in invoice POST request");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!user.organizationId) {
+      console.error("User has no organizationId:", user);
+      return NextResponse.json({ error: "User organization not found" }, { status: 400 });
     }
 
     const body = await request.json();
@@ -193,14 +204,21 @@ export async function POST(request: Request) {
     return NextResponse.json(invoice, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
+      console.error("Validation error creating invoice:", error.issues);
       return NextResponse.json(
         { error: error.issues[0].message },
         { status: 400 }
       );
     }
     console.error("Error creating invoice:", error);
+    if (error instanceof Error) {
+      console.error("Error details:", error.message, error.stack);
+    }
     return NextResponse.json(
-      { error: "Failed to create invoice" },
+      { 
+        error: "Failed to create invoice",
+        details: error instanceof Error ? error.message : "Unknown error"
+      },
       { status: 500 }
     );
   }

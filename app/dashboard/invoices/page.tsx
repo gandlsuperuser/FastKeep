@@ -93,9 +93,16 @@ export default function InvoicesPage() {
       const response = await fetch(`/api/invoices?${params.toString()}`);
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-        console.error("API error:", response.status, errorData);
-        alert(`Failed to fetch invoices: ${errorData.error || "Unknown error"}`);
+        let errorMessage = "Unknown error";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || `HTTP ${response.status}`;
+        } catch {
+          errorMessage = `HTTP ${response.status}: ${response.statusText || "Failed to fetch invoices"}`;
+        }
+        console.error("API error:", response.status, errorMessage);
+        alert(`Failed to fetch invoices: ${errorMessage}`);
+        setLoading(false);
         return;
       }
 
