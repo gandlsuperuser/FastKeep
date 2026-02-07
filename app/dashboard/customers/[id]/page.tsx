@@ -46,6 +46,19 @@ interface Customer {
   totalInvoices: number;
   totalPaid: number;
   prepaidCredit: number;
+  prepaidCreditHistory?: Array<{
+    id: string;
+    type: "CREDIT" | "DEBIT";
+    credit: number;
+    debit: number;
+    balance: number;
+    date: string;
+    invoiceId?: string;
+    invoiceNumber: string | null;
+    reference: string | null;
+    notes: string | null;
+    createdAt: string;
+  }>;
   invoices: Array<{
     id: string;
     number: string;
@@ -99,12 +112,10 @@ export default function CustomerDetailPage() {
       const pdfContainer = document.createElement("div");
       pdfContainer.style.position = "absolute";
       pdfContainer.style.left = "-9999px";
-      pdfContainer.style.width = "210mm"; // A4 width
-      pdfContainer.style.padding = "20mm";
-      pdfContainer.style.backgroundColor = "white";
-      pdfContainer.style.fontFamily = "Arial, sans-serif";
-      pdfContainer.style.fontSize = "12px";
-      pdfContainer.style.color = "black";
+      pdfContainer.style.width = "800px"; // Wider container for better readability
+      pdfContainer.style.padding = "40px";
+      pdfContainer.style.backgroundColor = "#ffffff";
+      pdfContainer.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
       document.body.appendChild(pdfContainer);
 
       // Build address lines
@@ -133,117 +144,169 @@ export default function CustomerDetailPage() {
       };
 
       pdfContainer.innerHTML = `
+        <style>
+          * {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            box-sizing: border-box;
+          }
+        </style>
         <div style="margin-bottom: 30px;">
-          <h1 style="font-size: 28px; font-weight: bold; margin-bottom: 20px; color: #1a1a1a;">
+          <h1 style="font-size: 20px; font-weight: 700; margin-bottom: 10px; color: #000000; letter-spacing: 0.2px; line-height: 1.3;">
             Customer Details Report
           </h1>
-          <div style="font-size: 11px; color: #666; margin-bottom: 20px;">
+          <div style="font-size: 9px; color: #000000; margin-bottom: 15px; font-weight: 500; line-height: 1.3;">
             Generated: ${new Date().toLocaleString()}
           </div>
         </div>
 
         <!-- Customer Information -->
-        <div style="margin-bottom: 30px; border: 1px solid #ddd; padding: 15px; border-radius: 5px;">
-          <h2 style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #1a1a1a; border-bottom: 2px solid #1a1a1a; padding-bottom: 5px;">
+        <div style="margin-bottom: 20px; border: 1px solid #000000; padding: 12px; border-radius: 6px; background-color: #ffffff;">
+          <h2 style="font-size: 14px; font-weight: 700; margin-bottom: 10px; color: #000000; border-bottom: 1px solid #000000; padding-bottom: 5px; line-height: 1.3; letter-spacing: 0.1px;">
             Customer Information
           </h2>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 13px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 9px; line-height: 1.4;">
             <div>
-              <div style="font-weight: 600; color: #666; margin-bottom: 3px;">Name</div>
-              <div style="margin-bottom: 10px;">${customer.name}</div>
+              <div style="font-weight: 700; color: #000000; margin-bottom: 3px; font-size: 8px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Name</div>
+              <div style="margin-bottom: 8px; color: #000000; font-weight: 600; font-size: 9px; line-height: 1.3;">${customer.name}</div>
             </div>
             ${customer.email ? `
               <div>
-                <div style="font-weight: 600; color: #666; margin-bottom: 3px;">Email</div>
-                <div style="margin-bottom: 10px;">${customer.email}</div>
+                <div style="font-weight: 700; color: #000000; margin-bottom: 3px; font-size: 8px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Email</div>
+                <div style="margin-bottom: 8px; color: #000000; font-weight: 600; font-size: 9px; line-height: 1.3;">${customer.email}</div>
               </div>
             ` : ""}
             ${customer.phone ? `
               <div>
-                <div style="font-weight: 600; color: #666; margin-bottom: 3px;">Phone</div>
-                <div style="margin-bottom: 10px;">${customer.phone}</div>
+                <div style="font-weight: 700; color: #000000; margin-bottom: 3px; font-size: 8px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Phone</div>
+                <div style="margin-bottom: 8px; color: #000000; font-weight: 600; font-size: 9px; line-height: 1.3;">${customer.phone}</div>
               </div>
             ` : ""}
             ${customer.taxId ? `
               <div>
-                <div style="font-weight: 600; color: #666; margin-bottom: 3px;">Tax ID</div>
-                <div style="margin-bottom: 10px;">${customer.taxId}</div>
+                <div style="font-weight: 700; color: #000000; margin-bottom: 3px; font-size: 8px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Tax ID</div>
+                <div style="margin-bottom: 8px; color: #000000; font-weight: 600; font-size: 9px; line-height: 1.3;">${customer.taxId}</div>
               </div>
             ` : ""}
             ${billingAddressLines.length > 0 ? `
               <div style="grid-column: 1 / -1;">
-                <div style="font-weight: 600; color: #666; margin-bottom: 3px;">Billing Address</div>
-                <div style="margin-bottom: 10px;">
-                  ${billingAddressLines.map((line) => `<div>${line}</div>`).join("")}
+                <div style="font-weight: 700; color: #000000; margin-bottom: 3px; font-size: 8px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Billing Address</div>
+                <div style="margin-bottom: 8px; color: #000000; font-weight: 600; font-size: 9px; line-height: 1.4;">
+                  ${billingAddressLines.map((line) => `<div style="margin-bottom: 2px;">${line}</div>`).join("")}
                 </div>
               </div>
             ` : ""}
             ${customer.paymentTerms ? `
               <div>
-                <div style="font-weight: 600; color: #666; margin-bottom: 3px;">Payment Terms</div>
-                <div style="margin-bottom: 10px;">${customer.paymentTerms}</div>
+                <div style="font-weight: 700; color: #000000; margin-bottom: 3px; font-size: 8px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Payment Terms</div>
+                <div style="margin-bottom: 8px; color: #000000; font-weight: 600; font-size: 9px; line-height: 1.3;">${customer.paymentTerms}</div>
               </div>
             ` : ""}
             ${customer.creditLimit ? `
               <div>
-                <div style="font-weight: 600; color: #666; margin-bottom: 3px;">Credit Limit</div>
-                <div style="margin-bottom: 10px;">${formatCurrency(customer.creditLimit)}</div>
+                <div style="font-weight: 700; color: #000000; margin-bottom: 3px; font-size: 8px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Credit Limit</div>
+                <div style="margin-bottom: 8px; color: #000000; font-weight: 600; font-size: 9px; line-height: 1.3;">${formatCurrency(customer.creditLimit)}</div>
               </div>
             ` : ""}
           </div>
         </div>
 
         <!-- Financial Summary -->
-        <div style="margin-bottom: 30px; border: 1px solid #ddd; padding: 15px; border-radius: 5px;">
-          <h2 style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #1a1a1a; border-bottom: 2px solid #1a1a1a; padding-bottom: 5px;">
+        <div style="margin-bottom: 20px; border: 1px solid #000000; padding: 12px; border-radius: 6px; background-color: #ffffff;">
+          <h2 style="font-size: 14px; font-weight: 700; margin-bottom: 10px; color: #000000; border-bottom: 1px solid #000000; padding-bottom: 5px; line-height: 1.3; letter-spacing: 0.1px;">
             Financial Summary
           </h2>
-          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; font-size: 13px;">
-            <div style="padding: 10px; background-color: #f9f9f9; border-radius: 3px;">
-              <div style="font-weight: 600; color: #666; margin-bottom: 5px; font-size: 11px;">Total Invoices</div>
-              <div style="font-size: 18px; font-weight: bold; color: #1a1a1a;">
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 9px;">
+            <div style="padding: 10px; background-color: #f5f5f5; border-radius: 4px; border: 1px solid #000000;">
+              <div style="font-weight: 700; color: #000000; margin-bottom: 5px; font-size: 8px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Total Invoices</div>
+              <div style="font-size: 14px; font-weight: 700; color: #000000; line-height: 1.3;">
                 ${formatCurrency(customer.totalInvoices || 0)}
               </div>
             </div>
-            <div style="padding: 10px; background-color: #f0f9f0; border-radius: 3px;">
-              <div style="font-weight: 600; color: #666; margin-bottom: 5px; font-size: 11px;">Total Paid</div>
-              <div style="font-size: 18px; font-weight: bold; color: #16a34a;">
+            <div style="padding: 10px; background-color: #e8f5e9; border-radius: 4px; border: 1px solid #000000;">
+              <div style="font-weight: 700; color: #000000; margin-bottom: 5px; font-size: 8px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Total Paid</div>
+              <div style="font-size: 14px; font-weight: 700; color: #1b5e20; line-height: 1.3;">
                 ${formatCurrency(customer.totalPaid || 0)}
               </div>
             </div>
-            <div style="padding: 10px; background-color: #fef2f2; border-radius: 3px;">
-              <div style="font-weight: 600; color: #666; margin-bottom: 5px; font-size: 11px;">Outstanding Balance</div>
-              <div style="font-size: 18px; font-weight: bold; color: #dc2626;">
+            <div style="padding: 10px; background-color: #ffebee; border-radius: 4px; border: 1px solid #000000;">
+              <div style="font-weight: 700; color: #000000; margin-bottom: 5px; font-size: 8px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Outstanding Balance</div>
+              <div style="font-size: 14px; font-weight: 700; color: #c62828; line-height: 1.3;">
                 -$${(customer.outstandingBalance || 0).toLocaleString(undefined, {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}
               </div>
             </div>
-            <div style="padding: 10px; background-color: #eff6ff; border-radius: 3px;">
-              <div style="font-weight: 600; color: #666; margin-bottom: 5px; font-size: 11px;">Prepaid Credit</div>
-              <div style="font-size: 18px; font-weight: bold; color: #2563eb;">
+            <div style="padding: 10px; background-color: #e3f2fd; border-radius: 4px; border: 1px solid #000000;">
+              <div style="font-weight: 700; color: #000000; margin-bottom: 5px; font-size: 8px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Prepaid Credit</div>
+              <div style="font-size: 14px; font-weight: 700; color: #1565c0; line-height: 1.3;">
                 ${formatCurrency(customer.prepaidCredit || 0)}
               </div>
             </div>
           </div>
         </div>
 
+        <!-- Prepaid Credit History -->
+        ${customer.prepaidCreditHistory && customer.prepaidCreditHistory.length > 0 ? `
+          <div style="margin-bottom: 20px; border: 1px solid #000000; padding: 12px; border-radius: 6px; background-color: #ffffff;">
+            <h2 style="font-size: 14px; font-weight: 700; margin-bottom: 10px; color: #000000; border-bottom: 1px solid #000000; padding-bottom: 5px; line-height: 1.3; letter-spacing: 0.1px;">
+              Prepaid Credit History
+            </h2>
+            <table style="width: 100%; border-collapse: collapse; font-size: 8px;">
+              <thead>
+                <tr style="background-color: #f5f5f5; border-bottom: 1px solid #000000;">
+                  <th style="text-align: left; padding: 6px 5px; font-weight: 700; color: #000000; font-size: 7px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Date</th>
+                  <th style="text-align: left; padding: 6px 5px; font-weight: 700; color: #000000; font-size: 7px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Description</th>
+                  <th style="text-align: right; padding: 6px 5px; font-weight: 700; color: #000000; font-size: 7px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Credit</th>
+                  <th style="text-align: right; padding: 6px 5px; font-weight: 700; color: #000000; font-size: 7px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Debit</th>
+                  <th style="text-align: right; padding: 6px 5px; font-weight: 700; color: #000000; font-size: 7px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Balance</th>
+                  <th style="text-align: left; padding: 6px 5px; font-weight: 700; color: #000000; font-size: 7px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Invoice #</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${customer.prepaidCreditHistory.map((entry: any, index: number) => {
+                  return `
+                    <tr style="border-bottom: 1px solid #000000; ${index % 2 === 0 ? "background-color: #fafafa;" : "background-color: #ffffff;"}">
+                      <td style="padding: 6px 5px; color: #000000; font-weight: 600; font-size: 8px; line-height: 1.3;">${formatDate(entry.date)}</td>
+                      <td style="padding: 6px 5px; color: #000000; line-height: 1.3;">
+                        <div style="font-weight: 600; margin-bottom: 2px; font-size: 8px; line-height: 1.2;">${entry.type === "CREDIT" ? "Credit Added" : "Credit Used"}</div>
+                        ${entry.notes ? `<div style="font-size: 7px; color: #000000; font-weight: 400; line-height: 1.2;">${entry.notes}</div>` : ""}
+                      </td>
+                      <td style="padding: 6px 5px; text-align: right; color: ${entry.credit > 0 ? "#1b5e20" : "#666666"}; font-weight: 700; font-size: 8px; line-height: 1.3;">
+                        ${entry.credit > 0 ? formatCurrency(entry.credit) : "-"}
+                      </td>
+                      <td style="padding: 6px 5px; text-align: right; color: ${entry.debit > 0 ? "#c62828" : "#666666"}; font-weight: 700; font-size: 8px; line-height: 1.3;">
+                        ${entry.debit > 0 ? formatCurrency(entry.debit) : "-"}
+                      </td>
+                      <td style="padding: 6px 5px; text-align: right; color: ${(entry.balance || 0) >= 0 ? "#1565c0" : "#c62828"}; font-weight: 700; font-size: 8px; line-height: 1.3;">
+                        ${formatCurrency(entry.balance || 0)}
+                      </td>
+                      <td style="padding: 6px 5px; color: #000000; font-weight: 600; font-size: 8px; line-height: 1.3;">
+                        ${entry.invoiceNumber || "-"}
+                      </td>
+                    </tr>
+                  `;
+                }).join("")}
+              </tbody>
+            </table>
+          </div>
+        ` : ""}
+
         <!-- Invoice History -->
         ${customer.invoices.length > 0 ? `
-          <div style="margin-bottom: 20px;">
-            <h2 style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #1a1a1a; border-bottom: 2px solid #1a1a1a; padding-bottom: 5px;">
+          <div style="margin-bottom: 20px; border: 1px solid #000000; padding: 12px; border-radius: 6px; background-color: #ffffff;">
+            <h2 style="font-size: 14px; font-weight: 700; margin-bottom: 10px; color: #000000; border-bottom: 1px solid #000000; padding-bottom: 5px; line-height: 1.3; letter-spacing: 0.1px;">
               Invoice History
             </h2>
-            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 8px;">
               <thead>
-                <tr style="background-color: #f3f4f6; border-bottom: 2px solid #1a1a1a;">
-                  <th style="text-align: left; padding: 10px 8px; font-weight: bold;">Invoice #</th>
-                  <th style="text-align: left; padding: 10px 8px; font-weight: bold;">Date</th>
-                  <th style="text-align: center; padding: 10px 8px; font-weight: bold;">Status</th>
-                  <th style="text-align: right; padding: 10px 8px; font-weight: bold;">Amount</th>
-                  <th style="text-align: right; padding: 10px 8px; font-weight: bold;">Paid</th>
-                  <th style="text-align: right; padding: 10px 8px; font-weight: bold;">Remaining</th>
+                <tr style="background-color: #f5f5f5; border-bottom: 1px solid #000000;">
+                  <th style="text-align: left; padding: 6px 5px; font-weight: 700; color: #000000; font-size: 7px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Invoice #</th>
+                  <th style="text-align: left; padding: 6px 5px; font-weight: 700; color: #000000; font-size: 7px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Date</th>
+                  <th style="text-align: center; padding: 6px 5px; font-weight: 700; color: #000000; font-size: 7px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Status</th>
+                  <th style="text-align: right; padding: 6px 5px; font-weight: 700; color: #000000; font-size: 7px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Amount</th>
+                  <th style="text-align: right; padding: 6px 5px; font-weight: 700; color: #000000; font-size: 7px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Paid</th>
+                  <th style="text-align: right; padding: 6px 5px; font-weight: 700; color: #000000; font-size: 7px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Remaining</th>
                 </tr>
               </thead>
               <tbody>
@@ -251,31 +314,31 @@ export default function CustomerDetailPage() {
                   const paid = inv.payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
                   const remaining = Number(inv.total) - paid;
                   const statusColors: { [key: string]: string } = {
-                    PAID: "#16a34a",
-                    SENT: "#2563eb",
-                    PARTIAL: "#ca8a04",
-                    OVERDUE: "#dc2626",
-                    DRAFT: "#6b7280",
+                    PAID: "#1b5e20",
+                    SENT: "#1565c0",
+                    PARTIAL: "#e65100",
+                    OVERDUE: "#c62828",
+                    DRAFT: "#424242",
                   };
                   const statusBg: { [key: string]: string } = {
-                    PAID: "#dcfce7",
-                    SENT: "#dbeafe",
-                    PARTIAL: "#fef3c7",
-                    OVERDUE: "#fee2e2",
-                    DRAFT: "#f3f4f6",
+                    PAID: "#c8e6c9",
+                    SENT: "#bbdefb",
+                    PARTIAL: "#ffe0b2",
+                    OVERDUE: "#ffcdd2",
+                    DRAFT: "#e0e0e0",
                   };
                   return `
-                    <tr style="border-bottom: 1px solid #e5e7eb; ${index % 2 === 0 ? "background-color: #fafafa;" : ""}">
-                      <td style="padding: 8px; font-weight: 500;">${inv.number}</td>
-                      <td style="padding: 8px;">${formatDate(inv.date)}</td>
-                      <td style="padding: 8px; text-align: center;">
-                        <span style="padding: 3px 8px; border-radius: 3px; font-size: 10px; background-color: ${statusBg[inv.status] || "#f3f4f6"}; color: ${statusColors[inv.status] || "#6b7280"};">
+                    <tr style="border-bottom: 1px solid #000000; ${index % 2 === 0 ? "background-color: #fafafa;" : "background-color: #ffffff;"}">
+                      <td style="padding: 6px 5px; font-weight: 700; color: #000000; font-size: 8px; line-height: 1.3;">${inv.number}</td>
+                      <td style="padding: 6px 5px; color: #000000; font-weight: 600; font-size: 8px; line-height: 1.3;">${formatDate(inv.date)}</td>
+                      <td style="padding: 6px 5px; text-align: center; line-height: 1.3;">
+                        <span style="padding: 2px 6px; border-radius: 2px; font-size: 7px; font-weight: 700; background-color: ${statusBg[inv.status] || "#e0e0e0"}; color: ${statusColors[inv.status] || "#424242"}; border: 1px solid #000000; line-height: 1.2;">
                           ${inv.status}
                         </span>
                       </td>
-                      <td style="padding: 8px; text-align: right; font-weight: 500;">${formatCurrency(Number(inv.total))}</td>
-                      <td style="padding: 8px; text-align: right; color: #16a34a;">${formatCurrency(paid)}</td>
-                      <td style="padding: 8px; text-align: right; color: #dc2626;">${formatCurrency(remaining)}</td>
+                      <td style="padding: 6px 5px; text-align: right; font-weight: 700; color: #000000; font-size: 8px; line-height: 1.3;">${formatCurrency(Number(inv.total))}</td>
+                      <td style="padding: 6px 5px; text-align: right; color: #1b5e20; font-weight: 700; font-size: 8px; line-height: 1.3;">${formatCurrency(paid)}</td>
+                      <td style="padding: 6px 5px; text-align: right; color: #c62828; font-weight: 700; font-size: 8px; line-height: 1.3;">${formatCurrency(remaining)}</td>
                     </tr>
                   `;
                 }).join("")}
@@ -283,23 +346,25 @@ export default function CustomerDetailPage() {
             </table>
           </div>
         ` : `
-          <div style="margin-bottom: 20px; padding: 20px; text-align: center; color: #666; border: 1px dashed #ddd; border-radius: 5px;">
-            No invoices found for this customer
+          <div style="margin-bottom: 20px; padding: 12px; text-align: center; color: #000000; border: 1px dashed #000000; border-radius: 6px; background-color: #f5f5f5;">
+            <div style="font-weight: 600; font-size: 9px; line-height: 1.3;">No invoices found for this customer</div>
           </div>
         `}
 
         <!-- Footer -->
-        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 10px; color: #666; text-align: center;">
-          <div>This report was generated on ${new Date().toLocaleString()}</div>
-          <div style="margin-top: 5px;">FastKeep Accounting System</div>
+        <div style="margin-top: 20px; padding-top: 12px; border-top: 1px solid #000000; font-size: 8px; color: #000000; text-align: center; font-weight: 600; line-height: 1.3;">
+          <div style="margin-bottom: 4px; line-height: 1.2;">This report was generated on ${new Date().toLocaleString()}</div>
+          <div style="font-weight: 700; color: #000000; font-size: 9px; line-height: 1.2;">FastKeep Accounting System</div>
         </div>
       `;
 
       // Generate PDF
       const canvas = await html2canvas(pdfContainer, {
-        scale: 2,
+        scale: 3,
         useCORS: true,
         logging: false,
+        backgroundColor: "#ffffff",
+        windowWidth: 1200,
       });
 
       document.body.removeChild(pdfContainer);
@@ -509,6 +574,117 @@ export default function CustomerDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Prepaid Credit History */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Prepaid Credit History</CardTitle>
+          <CardDescription>
+            Track all prepaid credit transactions and adjustments
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!customer.prepaidCreditHistory || customer.prepaidCreditHistory.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8">
+              No prepaid credit history found
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Credit</TableHead>
+                  <TableHead className="text-right">Debit</TableHead>
+                  <TableHead className="text-right">Balance</TableHead>
+                  <TableHead>Invoice #</TableHead>
+                  <TableHead>Reference</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {customer.prepaidCreditHistory.map((entry) => (
+                  <TableRow key={entry.id}>
+                    <TableCell>
+                      {new Date(entry.date).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium">
+                          {entry.type === "CREDIT" ? "Credit Added" : "Credit Used"}
+                        </span>
+                        {entry.notes && (
+                          <span className="text-xs text-muted-foreground">
+                            {entry.notes}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {entry.credit > 0 ? (
+                        <span className="font-medium text-green-600">
+                          ${entry.credit.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {entry.debit > 0 ? (
+                        <span className="font-medium text-red-600">
+                          ${entry.debit.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      <span
+                        className={
+                          (entry.balance || 0) >= 0
+                            ? "text-blue-600"
+                            : "text-red-600"
+                        }
+                      >
+                        ${(entry.balance || 0).toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {entry.invoiceNumber ? (
+                        entry.invoiceId ? (
+                          <Link
+                            href={`/dashboard/invoices/${entry.invoiceId}`}
+                            className="text-blue-600 hover:underline"
+                          >
+                            {entry.invoiceNumber}
+                          </Link>
+                        ) : (
+                          <span>{entry.invoiceNumber}</span>
+                        )
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {entry.reference || (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Invoices */}
       <Card>

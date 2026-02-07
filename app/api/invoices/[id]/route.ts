@@ -293,5 +293,59 @@ export async function PATCH(
   }
 }
 
+// DELETE - Delete invoice
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const { id } = await params;
 
+    // Check if invoice exists
+    const invoice = await prisma.invoice.findFirst({
+      where: {
+        id: id,
+        organizationId: user.organizationId,
+      },
+      include: {
+        payments: true,
+      },
+    });
+
+    if (!invoice) {
+      return NextResponse.json(
+        { error: "Invoice not found" },
+        { status: 404 }
+      );
+    }
+
+    // Check if invoice has payments
+    if (invoice.payments.length > 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Cannot delete invoice with existing payments. Please delete payments first.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Delete invoice (items and payments will be cascade deleted)
+    await prisma.invoice.delete({
+      where: { id: id },
+    });
+
+    return NextResponse.json({ message: "Invoice deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting invoice:", error);
+    return NextResponse.json(
+      { error: "Failed to delete invoice" },
+      { status: 500 }
+    );
+  }
+}
 

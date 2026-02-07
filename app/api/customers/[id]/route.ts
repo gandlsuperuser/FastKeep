@@ -48,7 +48,9 @@ export async function GET(
       include: {
         invoices: {
           include: {
-            payments: true,
+            payments: {
+              orderBy: { date: "desc" },
+            },
           },
           orderBy: { date: "desc" },
         },
@@ -92,6 +94,68 @@ export async function GET(
     const balance = totalInvoices - prepaidCredit;
     const outstandingBalance = balance > 0 ? balance : 0;
 
+    // Get prepaid credit history in credit/debit format
+    // Only show manual prepaid credit adjustments (not PREPAID_CREDIT payment method entries)
+    const prepaidCreditHistory: any[] = [];
+    
+    // Credits: Manual prepaid credit adjustments only
+    if (manualPrepaidCredit > 0) {
+      prepaidCreditHistory.push({
+        id: `manual-${customer.id}`,
+        type: "CREDIT" as const,
+        credit: manualPrepaidCredit,
+        debit: 0,
+        date: customer.updatedAt,
+        invoiceId: undefined,
+        invoiceNumber: null,
+        reference: null,
+        notes: "Manual prepaid credit adjustment",
+        createdAt: customer.updatedAt,
+      });
+    }
+
+    // 3. Debits: Invoice amounts (invoices debit from prepaid credit)
+    // Track each invoice as a debit entry
+    customer.invoices.forEach((inv: any) => {
+      const invoiceTotal = Number(inv.total);
+      
+      // Create debit entry for invoice amount
+      if (invoiceTotal > 0) {
+        prepaidCreditHistory.push({
+          id: `invoice-${inv.id}`,
+          type: "DEBIT" as const,
+          credit: 0,
+          debit: invoiceTotal, // Debit the invoice total amount
+          date: inv.date,
+          invoiceId: inv.id,
+          invoiceNumber: inv.number,
+          reference: null,
+          notes: `Invoice ${inv.number}`,
+          createdAt: inv.createdAt,
+        });
+      }
+    });
+
+    // Sort by date (oldest first for running balance calculation)
+    prepaidCreditHistory.sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    // Calculate running balance
+    let runningBalance = 0;
+    const historyWithBalance = prepaidCreditHistory.map((entry) => {
+      runningBalance = runningBalance + entry.credit - entry.debit;
+      return {
+        ...entry,
+        balance: runningBalance,
+      };
+    });
+
+    // Sort back to newest first for display
+    historyWithBalance.sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
     return NextResponse.json({
       ...customer,
       outstandingBalance,
@@ -100,6 +164,7 @@ export async function GET(
       prepaidCredit,
       calculatedPrepaidCredit,
       manualPrepaidCredit,
+      prepaidCreditHistory: historyWithBalance,
     });
   } catch (error) {
     console.error("Error fetching customer:", error);

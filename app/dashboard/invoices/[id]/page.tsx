@@ -39,7 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Mail, Download, Check, DollarSign, Pencil } from "lucide-react";
+import { ArrowLeft, Mail, Download, Check, DollarSign, Pencil, Trash2 } from "lucide-react";
 import { InvoiceStatus, PaymentMethod } from "@prisma/client";
 import { InvoiceForm } from "@/components/invoices/invoice-form";
 
@@ -99,6 +99,8 @@ export default function InvoiceDetailPage() {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isEditPaymentDialogOpen, setIsEditPaymentDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [editingPayment, setEditingPayment] = useState<{
     id: string;
     amount: number;
@@ -235,6 +237,27 @@ export default function InvoiceDetailPage() {
     } catch (error) {
       console.error("Error updating payment:", error);
       alert("Failed to update payment");
+    }
+  };
+
+  const handleDeleteInvoice = async () => {
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/invoices/${params.id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        router.push("/dashboard/invoices");
+      } else {
+        const data = await response.json();
+        alert(data.error || "Failed to delete invoice");
+        setIsDeleting(false);
+      }
+    } catch (error) {
+      console.error("Error deleting invoice:", error);
+      alert("Failed to delete invoice");
+      setIsDeleting(false);
     }
   };
 
@@ -526,6 +549,13 @@ export default function InvoiceDetailPage() {
           <Button variant="outline" onClick={handleDownloadPDF}>
             <Download className="mr-2 h-4 w-4" />
             Download PDF
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => setIsDeleteDialogOpen(true)}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete Invoice
           </Button>
           {invoice.status === InvoiceStatus.DRAFT && (
             <Button
@@ -1057,6 +1087,39 @@ export default function InvoiceDetailPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Delete Invoice Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Invoice</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete invoice {invoice?.number}? This action cannot be undone.
+              {invoice?.payments && invoice.payments.length > 0 && (
+                <span className="block mt-2 text-red-600 font-medium">
+                  This invoice has {invoice.payments.length} payment(s). Please delete payments first.
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteInvoice}
+              disabled={isDeleting || (invoice?.payments && invoice.payments.length > 0)}
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Notes and Terms */}
       {(invoice.notes || invoice.terms) && (
