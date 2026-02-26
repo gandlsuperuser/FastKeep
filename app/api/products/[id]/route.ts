@@ -14,6 +14,7 @@ const productSchema = z.object({
   category: z.string().optional(),
   inventory: z.number().int().optional(),
   unit: z.string().optional(),
+  location: z.string().optional(),
   isActive: z.boolean().optional(),
 });
 
@@ -119,6 +120,7 @@ export async function PUT(
         category: validatedData.category || null,
         inventory: validatedData.inventory || null,
         unit: validatedData.unit || "pcs",
+        location: validatedData.location || null,
         isActive: validatedData.isActive ?? true,
       },
     });

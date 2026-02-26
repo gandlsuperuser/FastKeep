@@ -41,6 +41,7 @@ interface Product {
   category: string | null;
   inventory: number | null;
   unit: string | null;
+  location: string | null;
   isActive: boolean;
   invoiceItems: Array<{
     id: string;
@@ -99,6 +100,11 @@ export default function ProductDetailPage() {
       ? ((product.price - product.cost) / product.price) * 100
       : 0;
 
+  const inventoryValue =
+    product.inventory !== null && product.cost
+      ? product.inventory * product.cost
+      : 0;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -113,10 +119,19 @@ export default function ProductDetailPage() {
             <p className="text-muted-foreground">Product Details</p>
           </div>
         </div>
-        <Button onClick={() => setIsEditDialogOpen(true)}>
-          <Pencil className="mr-2 h-4 w-4" />
-          Edit Product
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setIsEditDialogOpen(true)}
+          >
+            <Package className="mr-2 h-4 w-4" />
+            Inventory
+          </Button>
+          <Button onClick={() => setIsEditDialogOpen(true)}>
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit Product
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -150,6 +165,12 @@ export default function ProductDetailPage() {
               <div>
                 <div className="text-sm text-muted-foreground">Category</div>
                 <div className="font-medium">{product.category}</div>
+              </div>
+            )}
+            {product.location && (
+              <div>
+                <div className="text-sm text-muted-foreground">Location</div>
+                <div className="font-medium">{product.location}</div>
               </div>
             )}
             {product.description && (
@@ -205,6 +226,16 @@ export default function ProductDetailPage() {
                       : "Not tracked"}
                   </div>
                 </div>
+                {product.inventory !== null && product.cost > 0 && (
+                  <div>
+                    <div className="text-sm text-muted-foreground">
+                      Inventory Value
+                    </div>
+                    <div className="font-medium">
+                      ${inventoryValue.toLocaleString()}
+                    </div>
+                  </div>
+                )}
                 {product.inventory !== null && product.inventory < 10 && (
                   <div className="text-sm text-orange-600">
                     Low stock warning

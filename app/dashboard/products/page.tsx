@@ -40,6 +40,7 @@ interface Product {
   cost: number;
   category: string | null;
   inventory: number | null;
+   location: string | null;
   isActive: boolean;
   createdAt: string;
 }

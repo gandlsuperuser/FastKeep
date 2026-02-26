@@ -164,6 +164,7 @@ model Product {
   category      String?
   inventory     Int?          // Optional inventory tracking
   unit          String?       @default("pcs")
+  location      String?       // Optional inventory location / warehouse
   isActive      Boolean       @default(true)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt

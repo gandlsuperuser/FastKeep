@@ -26,6 +26,7 @@ interface Product {
   category?: string | null;
   inventory?: number | null;
   unit?: string | null;
+  location?: string | null;
   isActive?: boolean;
 }
 
@@ -48,6 +49,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
     category: product?.category || "",
     inventory: product?.inventory?.toString() || "",
     unit: product?.unit || "pcs",
+     location: product?.location || "",
     isActive: product?.isActive ?? true,
   });
 
@@ -72,6 +74,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
         category: formData.category || undefined,
         inventory: formData.inventory ? parseInt(formData.inventory) : undefined,
         unit: formData.unit,
+        location: formData.location || undefined,
         isActive: formData.isActive,
       };
 
@@ -228,6 +231,17 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                 placeholder="pcs, kg, etc."
               />
             </div>
+          <div className="space-y-2">
+            <Label htmlFor="location">Location</Label>
+            <Input
+              id="location"
+              value={formData.location}
+              onChange={(e) =>
+                setFormData({ ...formData, location: e.target.value })
+              }
+              placeholder="Warehouse / Shelf"
+            />
+          </div>
           </div>
         </div>
       )}

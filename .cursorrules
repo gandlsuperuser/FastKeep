@@ -344,6 +344,16 @@ Keep updated continuously.
 * [X] Delete product (with validation)
 * [ ] Bulk import products (CSV)
 
+### Inventory
+
+* [ ] Inventory section:
+  - SKU
+  - Quantity on hand
+  - Purchase price (cost)
+  - Selling price
+  - Inventory value (quantity × cost)
+  - Optional: location / warehouse
+
 ## 8. Invoicing Module
 
 * [X] Invoices list page:
