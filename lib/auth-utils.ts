@@ -1,11 +1,11 @@
-import { getToken } from "next-auth/jwt";
-import { headers } from "next/headers";
 import { UserRole } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { prisma } from "@/db/prisma";
 
 // TODO: Set this to false in production! This is only for testing
 const DISABLE_AUTH = process.env.DISABLE_AUTH === "true";
+
+import { auth } from "@/lib/auth";
 
 /**
  * Get the current user on the server
@@ -39,51 +39,24 @@ export async function getCurrentUser(request?: Request) {
     };
   }
 
-  let token;
-  
   try {
-    if (request) {
-      // In API routes, prefer the request object for better performance
-      token = await getToken({
-        req: request as any,
-        secret: process.env.NEXTAUTH_SECRET,
-      });
-    } else {
-      // Fallback to headers() which works in both contexts
-      const headersList = await headers();
-      const cookieHeader = headersList.get("cookie") || "";
-      
-      token = await getToken({
-        req: {
-          headers: {
-            cookie: cookieHeader,
-          },
-        } as any,
-        secret: process.env.NEXTAUTH_SECRET,
-      });
+    const session = await auth();
+
+    if (!session?.user) {
+      return null;
     }
+
+    return {
+      id: session.user.id as string,
+      email: session.user.email as string,
+      name: session.user.name as string,
+      role: session.user.role as UserRole,
+      organizationId: session.user.organizationId as string,
+    };
   } catch (error) {
-    // If headers() fails (e.g., not in server context), return null
     console.error("Error getting current user:", error);
-    // Log the full error for debugging
-    if (error instanceof Error) {
-      console.error("Error details:", error.message, error.stack);
-    }
     return null;
   }
-
-  if (!token) {
-    return null;
-  }
-
-  // Reconstruct user object from token
-  return {
-    id: token.id as string,
-    email: token.email as string,
-    name: token.name as string,
-    role: token.role as UserRole,
-    organizationId: token.organizationId as string,
-  };
 }
 
 /**

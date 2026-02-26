@@ -89,10 +89,9 @@ export async function GET(
     // Total prepaid credit = calculated (from overpayments) + manual (user-set)
     const prepaidCredit = calculatedPrepaidCredit + manualPrepaidCredit;
 
-    // Outstanding balance = total invoices - prepaid credit
-    // If result is positive, show as positive. If negative or zero, show as 0.
-    const balance = totalInvoices - prepaidCredit;
-    const outstandingBalance = balance > 0 ? balance : 0;
+    // Outstanding balance = total invoices - prepaid credit (exact value)
+    // Positive = customer owes; Negative = customer has credit
+    const outstandingBalance = totalInvoices - prepaidCredit;
 
     // Get prepaid credit history in credit/debit format
     // Only show manual prepaid credit adjustments (not PREPAID_CREDIT payment method entries)

@@ -1,6 +1,6 @@
 # Vercel Environment Variables Setup
 
-To fix the `error=configuration` issue when logging in, you need to set the following environment variables in your Vercel project:
+To fix the `error=Configuration` issue when logging in, you need to set the following environment variables in your Vercel project:
 
 ## Required Environment Variables
 
@@ -15,9 +15,10 @@ openssl rand -base64 32
 Or use an online generator: https://generate-secret.vercel.app/32
 
 **In Vercel:**
-1. Go to your project settings: https://vercel.com/[your-username]/fast-keep/settings
-2. Navigate to "Environment Variables"
-3. Add:
+1. Go to your project settings: https://vercel.com/dashboard
+2. Select your project: `fast-keep`
+3. Go to Settings → Environment Variables
+4. Add:
    - **Name:** `NEXTAUTH_SECRET`
    - **Value:** (paste your generated secret)
    - **Environment:** Production, Preview, Development (select all)
@@ -69,28 +70,24 @@ If you want to enable Google or GitHub login:
    - `DATABASE_URL` (your PostgreSQL connection string)
 
 4. **Redeploy:**
-   - After adding environment variables, trigger a new deployment
-   - Go to Deployments tab
-   - Click "Redeploy" on the latest deployment
-   - Or push a new commit to trigger automatic deployment
+   - After adding environment variables, go to the Deployments tab
+   - Click the three dots (⋯) on the latest deployment
+   - Select "Redeploy"
+   - Or push a new commit to trigger a redeploy
 
-5. **Verify:**
-   - Try logging in again at https://fast-keep.vercel.app/login
-   - The `error=configuration` should be resolved
+## Quick Check
 
-## Important Notes
+After setting up, verify your environment variables are set:
+- Go to Vercel Dashboard → Your Project → Settings → Environment Variables
+- Make sure all three required variables are present
+- Ensure they're enabled for "Production" environment
 
-- Environment variables are case-sensitive
-- Make sure to select all environments (Production, Preview, Development) when adding variables
-- After adding variables, you must redeploy for changes to take effect
-- Never commit `.env` files to git (they're already in `.gitignore`)
+## Common Issues
 
-## Troubleshooting
+1. **"Configuration" error:** Usually means `NEXTAUTH_SECRET` or `NEXTAUTH_URL` is missing
+2. **Database connection errors:** Check `DATABASE_URL` is correct
+3. **OAuth not working:** Make sure OAuth credentials are set if you want to use them (optional)
 
-If you still see `error=configuration` after setting variables:
+## Testing
 
-1. **Check variable names:** Ensure they match exactly (case-sensitive)
-2. **Redeploy:** Environment variables only apply to new deployments
-3. **Check Vercel logs:** Go to Deployments → [Latest] → Functions → View logs
-4. **Verify secret format:** NEXTAUTH_SECRET should be a long random string (32+ characters)
-
+After redeploying, try logging in again. The configuration error should be resolved if all required environment variables are set correctly.

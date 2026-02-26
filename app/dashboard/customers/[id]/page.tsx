@@ -143,6 +143,16 @@ export default function CustomerDetailPage() {
         })}`;
       };
 
+      // Outstanding balance display (exact value: positive = owes, negative = credit)
+      const ob = customer.outstandingBalance ?? 0;
+      const obDisplay =
+        ob > 0
+          ? `-$${ob.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          : ob < 0
+            ? `+$${Math.abs(ob).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            : formatCurrency(0);
+      const obColor = ob > 0 ? "#c62828" : ob < 0 ? "#1b5e20" : "#000000";
+
       pdfContainer.innerHTML = `
         <style>
           * {
@@ -230,11 +240,8 @@ export default function CustomerDetailPage() {
             </div>
             <div style="padding: 10px; background-color: #ffebee; border-radius: 4px; border: 1px solid #000000;">
               <div style="font-weight: 700; color: #000000; margin-bottom: 5px; font-size: 8px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;">Outstanding Balance</div>
-              <div style="font-size: 14px; font-weight: 700; color: #c62828; line-height: 1.3;">
-                -$${(customer.outstandingBalance || 0).toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+              <div style="font-size: 14px; font-weight: 700; color: ${obColor}; line-height: 1.3;">
+                ${obDisplay}
               </div>
             </div>
             <div style="padding: 10px; background-color: #e3f2fd; border-radius: 4px; border: 1px solid #000000;">
@@ -533,11 +540,12 @@ export default function CustomerDetailPage() {
                   <div className="text-sm text-muted-foreground">
                     Outstanding Balance
                   </div>
-                  <div className="font-medium text-lg text-red-600">
-                    -${(customer.outstandingBalance || 0).toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
+                  <div className={`font-medium text-lg ${(customer.outstandingBalance ?? 0) > 0 ? "text-red-600" : (customer.outstandingBalance ?? 0) < 0 ? "text-green-600" : ""}`}>
+                    {(customer.outstandingBalance ?? 0) > 0
+                      ? `-$${customer.outstandingBalance!.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                      : (customer.outstandingBalance ?? 0) < 0
+                        ? `+$${Math.abs(customer.outstandingBalance!).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : `$${(0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
                     {(customer.totalInvoices || 0) > 0 || (customer.prepaidCredit || 0) > 0 ? (
@@ -548,10 +556,10 @@ export default function CustomerDetailPage() {
                         })} - ${(customer.prepaidCredit || 0).toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
-                        })} = -${(customer.outstandingBalance || 0).toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
+                        })} ={" "}
+                        {(customer.outstandingBalance ?? 0) >= 0
+                          ? `-$${(customer.outstandingBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : `+$${Math.abs(customer.outstandingBalance!).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                       </>
                     ) : (
                       "No invoices or prepaid credit"

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import jsPDF from "jspdf";
+import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import {
   Card,
@@ -264,11 +264,14 @@ export default function InvoiceDetailPage() {
   const handleDownloadPDF = async () => {
     if (!invoice) return;
 
+    console.log("Starting PDF generation...");
     try {
       // Create a hidden container for PDF generation
       const pdfContainer = document.createElement("div");
-      pdfContainer.style.position = "absolute";
-      pdfContainer.style.left = "-9999px";
+      pdfContainer.style.position = "fixed"; // Changed to fixed
+      pdfContainer.style.left = "0"; // Keep on screen horizontally
+      pdfContainer.style.top = "0";
+      pdfContainer.style.zIndex = "-9999"; // Hide behind everything
       pdfContainer.style.width = "210mm"; // A4 width
       pdfContainer.style.padding = "20mm";
       pdfContainer.style.backgroundColor = "white";
@@ -276,6 +279,8 @@ export default function InvoiceDetailPage() {
       pdfContainer.style.fontSize = "12px";
       pdfContainer.style.color = "black";
       document.body.appendChild(pdfContainer);
+
+      console.log("PDF container created and appended.");
 
       // Build invoice HTML - Customer billing address
       const addressLines: string[] = [];
@@ -363,8 +368,8 @@ export default function InvoiceDetailPage() {
           </thead>
           <tbody>
             ${invoice.items
-              .map(
-                (item) => `
+          .map(
+            (item) => `
               <tr style="border-bottom: 1px solid #ddd;">
                 <td style="padding: 10px 0;">
                   <div style="font-weight: 500;">${item.description}</div>
@@ -375,8 +380,8 @@ export default function InvoiceDetailPage() {
                 <td style="text-align: right; padding: 10px 0;">$${Number(item.amount).toFixed(2)}</td>
               </tr>
             `
-              )
-              .join("")}
+          )
+          .join("")}
           </tbody>
         </table>
 
@@ -418,48 +423,67 @@ export default function InvoiceDetailPage() {
       `;
 
       // Wait a bit for rendering
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 500)); // Increased timeout
 
-      // Capture as canvas
-      const canvas = await html2canvas(pdfContainer, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff",
-      });
+      console.log("Starting html2canvas capture...");
 
-      // Remove the container
-      document.body.removeChild(pdfContainer);
+      try {
+        // Capture as canvas
+        const canvas = await html2canvas(pdfContainer, {
+          scale: 2,
+          useCORS: true,
+          logging: true, // Enable logging for debugging
+          backgroundColor: "#ffffff",
+          windowWidth: pdfContainer.scrollWidth,
+          windowHeight: pdfContainer.scrollHeight,
+          onclone: (document) => {
+            console.log("html2canvas cloned document");
+          }
+        });
 
-      // Create PDF
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = imgWidth / imgHeight;
-      const imgPdfHeight = pdfWidth / ratio;
-      let heightLeft = imgPdfHeight;
-      let position = 0;
+        console.log("Canvas captured successfully.", canvas.width, canvas.height);
 
-      // Add first page
-      pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgPdfHeight);
-      heightLeft -= pdfHeight;
+        // Remove the container
+        document.body.removeChild(pdfContainer);
 
-      // Add additional pages if needed
-      while (heightLeft > 0) {
-        position = heightLeft - imgPdfHeight;
-        pdf.addPage();
+        // Create PDF
+        console.log("Creating jsPDF instance...");
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jsPDF("p", "mm", "a4");
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgWidth = canvas.width;
+        const imgHeight = canvas.height;
+        const ratio = imgWidth / imgHeight;
+        const imgPdfHeight = pdfWidth / ratio;
+        let heightLeft = imgPdfHeight;
+        let position = 0;
+
+        // Add first page
         pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgPdfHeight);
         heightLeft -= pdfHeight;
-      }
 
-      // Save PDF
-      pdf.save(`Invoice-${invoice.number}.pdf`);
+        // Add additional pages if needed
+        while (heightLeft > 0) {
+          position = heightLeft - imgPdfHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgPdfHeight);
+          heightLeft -= pdfHeight;
+        }
+
+        // Save PDF
+        console.log("Saving PDF...");
+        pdf.save(`Invoice-${invoice.number}.pdf`);
+        console.log("PDF saved.");
+
+      } catch (canvasError) {
+        console.error("Error capturing canvas or saving PDF:", canvasError);
+        document.body.removeChild(pdfContainer); // Clean up if capture fails
+        throw new Error(`Failed to capture canvas: ${canvasError instanceof Error ? canvasError.message : String(canvasError)}`);
+      }
     } catch (error) {
       console.error("Error generating PDF:", error);
-      alert("Failed to generate PDF. Please try again.");
+      alert(`Failed to generate PDF: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
@@ -596,16 +620,16 @@ export default function InvoiceDetailPage() {
                       {(invoice.organization.settings.address.city ||
                         invoice.organization.settings.address.state ||
                         invoice.organization.settings.address.zip) && (
-                        <div>
-                          {[
-                            invoice.organization.settings.address.city,
-                            invoice.organization.settings.address.state,
-                            invoice.organization.settings.address.zip,
-                          ]
-                            .filter(Boolean)
-                            .join(", ")}
-                        </div>
-                      )}
+                          <div>
+                            {[
+                              invoice.organization.settings.address.city,
+                              invoice.organization.settings.address.state,
+                              invoice.organization.settings.address.zip,
+                            ]
+                              .filter(Boolean)
+                              .join(", ")}
+                          </div>
+                        )}
                       {invoice.organization.settings.address.country && (
                         <div>{invoice.organization.settings.address.country}</div>
                       )}
@@ -638,16 +662,16 @@ export default function InvoiceDetailPage() {
                   {(invoice.customer.billingAddress.city ||
                     invoice.customer.billingAddress.state ||
                     invoice.customer.billingAddress.zip) && (
-                    <div>
-                      {[
-                        invoice.customer.billingAddress.city,
-                        invoice.customer.billingAddress.state,
-                        invoice.customer.billingAddress.zip,
-                      ]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </div>
-                  )}
+                      <div>
+                        {[
+                          invoice.customer.billingAddress.city,
+                          invoice.customer.billingAddress.state,
+                          invoice.customer.billingAddress.zip,
+                        ]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </div>
+                    )}
                   {invoice.customer.billingAddress.country && (
                     <div>{invoice.customer.billingAddress.country}</div>
                   )}
@@ -666,15 +690,14 @@ export default function InvoiceDetailPage() {
             <div className="flex justify-between">
               <span className="text-muted-foreground">Status:</span>
               <span
-                className={`px-2 py-1 rounded text-xs ${
-                  invoice.status === InvoiceStatus.PAID
-                    ? "bg-green-100 text-green-800"
-                    : invoice.status === InvoiceStatus.SENT
+                className={`px-2 py-1 rounded text-xs ${invoice.status === InvoiceStatus.PAID
+                  ? "bg-green-100 text-green-800"
+                  : invoice.status === InvoiceStatus.SENT
                     ? "bg-blue-100 text-blue-800"
                     : isOverdue
-                    ? "bg-red-100 text-red-800"
-                    : "bg-gray-100 text-gray-800"
-                }`}
+                      ? "bg-red-100 text-red-800"
+                      : "bg-gray-100 text-gray-800"
+                  }`}
               >
                 {isOverdue && invoice.status !== InvoiceStatus.PAID
                   ? "OVERDUE"
@@ -1149,5 +1172,3 @@ export default function InvoiceDetailPage() {
     </div>
   );
 }
-
-
