@@ -15,7 +15,9 @@ export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   const isAuthPage =
-    pathname.startsWith("/login") || pathname.startsWith("/signup");
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/forgot-password");
   const isApiAuth = pathname.startsWith("/api/auth");
   const isPublicPage = pathname === "/" || pathname.startsWith("/public");
 
