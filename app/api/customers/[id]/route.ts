@@ -72,6 +72,8 @@ export async function GET(
       0
     );
 
+    const prepaidCredit = Number((customer as any).prepaidCredit || 0);
+
     const totalPaid = customer.invoices.reduce((sum: number, inv: any) => {
       const invoicePaid = inv.payments.reduce(
         (pSum: number, p: any) => pSum + Number(p.amount),
@@ -80,80 +82,10 @@ export async function GET(
       return sum + invoicePaid;
     }, 0);
 
-    // Calculate prepaid/credit amount from overpayments
-    const calculatedPrepaidCredit = Math.max(0, totalPaid - totalInvoices);
-    
-    // Get manual prepaid credit from customer record (default to 0 if null)
-    const manualPrepaidCredit = Number((customer as any).prepaidCredit || 0);
-    
-    // Total prepaid credit = calculated (from overpayments) + manual (user-set)
-    const prepaidCredit = calculatedPrepaidCredit + manualPrepaidCredit;
+    const calculatedPrepaidCredit = 0;
 
-    // Outstanding balance = total invoices - prepaid credit (exact value)
-    // Positive = customer owes; Negative = customer has credit
-    const outstandingBalance = totalInvoices - prepaidCredit;
-
-    // Get prepaid credit history in credit/debit format
-    // Only show manual prepaid credit adjustments (not PREPAID_CREDIT payment method entries)
-    const prepaidCreditHistory: any[] = [];
-    
-    // Credits: Manual prepaid credit adjustments only
-    if (manualPrepaidCredit > 0) {
-      prepaidCreditHistory.push({
-        id: `manual-${customer.id}`,
-        type: "CREDIT" as const,
-        credit: manualPrepaidCredit,
-        debit: 0,
-        date: customer.updatedAt,
-        invoiceId: undefined,
-        invoiceNumber: null,
-        reference: null,
-        notes: "Manual prepaid credit adjustment",
-        createdAt: customer.updatedAt,
-      });
-    }
-
-    // 3. Debits: Invoice amounts (invoices debit from prepaid credit)
-    // Track each invoice as a debit entry
-    customer.invoices.forEach((inv: any) => {
-      const invoiceTotal = Number(inv.total);
-      
-      // Create debit entry for invoice amount
-      if (invoiceTotal > 0) {
-        prepaidCreditHistory.push({
-          id: `invoice-${inv.id}`,
-          type: "DEBIT" as const,
-          credit: 0,
-          debit: invoiceTotal, // Debit the invoice total amount
-          date: inv.date,
-          invoiceId: inv.id,
-          invoiceNumber: inv.number,
-          reference: null,
-          notes: `Invoice ${inv.number}`,
-          createdAt: inv.createdAt,
-        });
-      }
-    });
-
-    // Sort by date (oldest first for running balance calculation)
-    prepaidCreditHistory.sort((a, b) => 
-      new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
-
-    // Calculate running balance
-    let runningBalance = 0;
-    const historyWithBalance = prepaidCreditHistory.map((entry) => {
-      runningBalance = runningBalance + entry.credit - entry.debit;
-      return {
-        ...entry,
-        balance: runningBalance,
-      };
-    });
-
-    // Sort back to newest first for display
-    historyWithBalance.sort((a, b) => 
-      new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
+    // Outstanding balance = Prepaid Credit - Total Invoices
+    const outstandingBalance = prepaidCredit - totalInvoices;
 
     return NextResponse.json({
       ...customer,
@@ -162,8 +94,6 @@ export async function GET(
       totalPaid,
       prepaidCredit,
       calculatedPrepaidCredit,
-      manualPrepaidCredit,
-      prepaidCreditHistory: historyWithBalance,
     });
   } catch (error) {
     console.error("Error fetching customer:", error);
@@ -209,8 +139,8 @@ export async function PUT(
       name: validatedData.name,
       email: validatedData.email || null,
       phone: validatedData.phone || null,
-        billingAddress: validatedData.billingAddress || null,
-        shippingAddress: validatedData.shippingAddress || null,
+      billingAddress: validatedData.billingAddress || null,
+      shippingAddress: validatedData.shippingAddress || null,
       paymentTerms: validatedData.paymentTerms || "Net 30",
       creditLimit: validatedData.creditLimit || 0,
       taxId: validatedData.taxId || null,
