@@ -99,7 +99,7 @@ export default function CustomerDetailPage() {
       const pdfContainer = document.createElement("div");
       pdfContainer.style.position = "absolute";
       pdfContainer.style.left = "-9999px";
-      pdfContainer.style.width = "800px"; // Wider container for better readability
+      pdfContainer.style.width = "1100px"; // Wide enough for 6-column table
       pdfContainer.style.padding = "40px";
       pdfContainer.style.backgroundColor = "#ffffff";
       pdfContainer.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
@@ -250,15 +250,23 @@ export default function CustomerDetailPage() {
               Invoice History
             </h2>
             <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-              <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed;">
+                <colgroup>
+                  <col style="width: 18%;" />
+                  <col style="width: 16%;" />
+                  <col style="width: 14%;" />
+                  <col style="width: 18%;" />
+                  <col style="width: 17%;" />
+                  <col style="width: 17%;" />
+                </colgroup>
                 <thead>
-                  <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
-                    <th style="text-align: left; padding: 10px 12px; font-weight: 600; color: #475569; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Invoice #</th>
-                    <th style="text-align: left; padding: 10px 12px; font-weight: 600; color: #475569; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Date</th>
-                    <th style="text-align: center; padding: 10px 12px; font-weight: 600; color: #475569; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Status</th>
-                    <th style="text-align: right; padding: 10px 12px; font-weight: 600; color: #475569; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Amount</th>
-                    <th style="text-align: right; padding: 10px 12px; font-weight: 600; color: #475569; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Paid</th>
-                    <th style="text-align: right; padding: 10px 12px; font-weight: 600; color: #475569; font-size: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Remaining</th>
+                  <tr style="background-color: #f8fafc; border-bottom: 2px solid #cbd5e1;">
+                    <th style="text-align: left; padding: 12px 16px; font-weight: 700; color: #334155; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;">Invoice #</th>
+                    <th style="text-align: left; padding: 12px 16px; font-weight: 700; color: #334155; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;">Date</th>
+                    <th style="text-align: center; padding: 12px 16px; font-weight: 700; color: #334155; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;">Status</th>
+                    <th style="text-align: right; padding: 12px 16px; font-weight: 700; color: #334155; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;">Amount</th>
+                    <th style="text-align: right; padding: 12px 16px; font-weight: 700; color: #334155; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;">Paid</th>
+                    <th style="text-align: right; padding: 12px 16px; font-weight: 700; color: #334155; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;">Remaining</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -283,16 +291,16 @@ export default function CustomerDetailPage() {
 
         return `
                       <tr style="border-bottom: ${index === customer.invoices.length - 1 ? 'none' : '1px solid #e2e8f0'}; background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-                        <td style="padding: 10px 12px; font-weight: 600; color: #0f172a;">${inv.number}</td>
-                        <td style="padding: 10px 12px; color: #334155;">${formatDate(inv.date)}</td>
-                        <td style="padding: 10px 12px; text-align: center;">
-                          <span style="display: inline-block; padding: 3px 8px; border-radius: 9999px; font-size: 7px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; background-color: ${statusBg[inv.status] || "#f1f5f9"}; color: ${statusColors[inv.status] || "#475569"};">
+                        <td style="padding: 12px 16px; font-weight: 600; color: #0f172a; white-space: nowrap;">${inv.number}</td>
+                        <td style="padding: 12px 16px; color: #334155; white-space: nowrap;">${formatDate(inv.date)}</td>
+                        <td style="padding: 12px 16px; text-align: center;">
+                          <span style="display: inline-block; padding: 3px 10px; border-radius: 9999px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; background-color: ${statusBg[inv.status] || "#f1f5f9"}; color: ${statusColors[inv.status] || "#475569"}; white-space: nowrap;">
                             ${inv.status}
                           </span>
                         </td>
-                        <td style="padding: 10px 12px; text-align: right; font-weight: 600; color: #0f172a;">${formatCurrency(Number(inv.total))}</td>
-                        <td style="padding: 10px 12px; text-align: right; color: ${paid > 0 ? '#047857' : '#64748b'}; font-weight: ${paid > 0 ? '600' : '400'};">${formatCurrency(paid)}</td>
-                        <td style="padding: 10px 12px; text-align: right; color: ${remaining > 0 ? '#b91c1c' : '#64748b'}; font-weight: ${remaining > 0 ? '600' : '400'};">${formatCurrency(remaining)}</td>
+                        <td style="padding: 12px 16px; text-align: right; font-weight: 600; color: #0f172a; white-space: nowrap;">${formatCurrency(Number(inv.total))}</td>
+                        <td style="padding: 12px 16px; text-align: right; color: ${paid > 0 ? '#047857' : '#64748b'}; font-weight: ${paid > 0 ? '600' : '400'}; white-space: nowrap;">${formatCurrency(paid)}</td>
+                        <td style="padding: 12px 16px; text-align: right; color: ${remaining > 0 ? '#b91c1c' : '#64748b'}; font-weight: ${remaining > 0 ? '600' : '400'}; white-space: nowrap;">${formatCurrency(remaining)}</td>
                       </tr>
                     `;
       }).join("")}
@@ -315,7 +323,7 @@ export default function CustomerDetailPage() {
 
       // Generate PDF
       const canvas = await html2canvas(pdfContainer, {
-        scale: 3,
+        scale: 1.5, // Reduced from 3 for smaller file size
         useCORS: true,
         logging: false,
         backgroundColor: "#ffffff",
@@ -324,7 +332,8 @@ export default function CustomerDetailPage() {
 
       document.body.removeChild(pdfContainer);
 
-      const imgData = canvas.toDataURL("image/png");
+      // Use JPEG with quality 0.8 heavily reduces file size compared to PNG
+      const imgData = canvas.toDataURL("image/jpeg", 0.8);
       const pdf = new jsPDF("p", "mm", "a4");
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
@@ -335,13 +344,13 @@ export default function CustomerDetailPage() {
       let heightLeft = imgPdfHeight;
       let position = 0;
 
-      pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgPdfHeight);
+      pdf.addImage(imgData, "JPEG", 0, position, pdfWidth, imgPdfHeight);
       heightLeft -= pdfHeight;
 
       while (heightLeft >= 0) {
         position = heightLeft - imgPdfHeight;
         pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgPdfHeight);
+        pdf.addImage(imgData, "JPEG", 0, position, pdfWidth, imgPdfHeight);
         heightLeft -= pdfHeight;
       }
 

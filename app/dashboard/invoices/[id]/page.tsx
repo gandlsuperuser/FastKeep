@@ -430,9 +430,9 @@ export default function InvoiceDetailPage() {
       try {
         // Capture as canvas
         const canvas = await html2canvas(pdfContainer, {
-          scale: 2,
+          scale: 1.5, // Reduced from 2 for smaller file size
           useCORS: true,
-          logging: true, // Enable logging for debugging
+          logging: false,
           backgroundColor: "#ffffff",
           windowWidth: pdfContainer.scrollWidth,
           windowHeight: pdfContainer.scrollHeight,
@@ -448,7 +448,8 @@ export default function InvoiceDetailPage() {
 
         // Create PDF
         console.log("Creating jsPDF instance...");
-        const imgData = canvas.toDataURL("image/png");
+        // Use JPEG with quality 0.8 heavily reduces file size compared to PNG
+        const imgData = canvas.toDataURL("image/jpeg", 0.8);
         const pdf = new jsPDF("p", "mm", "a4");
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
@@ -460,14 +461,14 @@ export default function InvoiceDetailPage() {
         let position = 0;
 
         // Add first page
-        pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgPdfHeight);
+        pdf.addImage(imgData, "JPEG", 0, position, pdfWidth, imgPdfHeight);
         heightLeft -= pdfHeight;
 
         // Add additional pages if needed
         while (heightLeft > 0) {
           position = heightLeft - imgPdfHeight;
           pdf.addPage();
-          pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgPdfHeight);
+          pdf.addImage(imgData, "JPEG", 0, position, pdfWidth, imgPdfHeight);
           heightLeft -= pdfHeight;
         }
 
