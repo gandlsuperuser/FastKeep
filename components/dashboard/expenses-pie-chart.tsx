@@ -18,9 +18,38 @@ interface ExpensesPieChartProps {
   data: ExpenseData[];
 }
 
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
+const COLORS = [
+  "var(--primary)",
+  "var(--chart-2, #22c55e)",
+  "var(--chart-3, #f59e0b)",
+  "var(--chart-4, #ef4444)",
+  "var(--chart-5, #8b5cf6)",
+];
+
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="rounded-lg border bg-background/95 px-3 py-2 shadow-sm backdrop-blur-sm">
+        <p className="text-xs text-muted-foreground">{data.category}</p>
+        <p className="text-sm font-semibold">
+          ${Number(data.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
 
 export function ExpensesPieChart({ data }: ExpensesPieChartProps) {
+  if (!data.length) {
+    return (
+      <div className="flex h-[300px] items-center justify-center text-muted-foreground text-sm">
+        No expense data available
+      </div>
+    );
+  }
+
   return (
     <ResponsiveContainer width="100%" height={300}>
       <PieChart>
@@ -28,24 +57,24 @@ export function ExpensesPieChart({ data }: ExpensesPieChartProps) {
           data={data}
           cx="50%"
           cy="50%"
-          labelLine={false}
-          label={({ name, percent }) =>
-            `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`
-          }
-          outerRadius={80}
-          fill="#8884d8"
+          innerRadius={60}
+          outerRadius={90}
+          paddingAngle={2}
           dataKey="amount"
+          animationDuration={500}
+          animationEasing="ease-out"
         >
-          {data.map((entry, index) => (
+          {data.map((_, index) => (
             <Cell
               key={`cell-${index}`}
               fill={COLORS[index % COLORS.length]}
+              stroke="var(--background)"
+              strokeWidth={2}
             />
           ))}
         </Pie>
-        <Tooltip />
+        <Tooltip content={<CustomTooltip />} />
       </PieChart>
     </ResponsiveContainer>
   );
 }
-
