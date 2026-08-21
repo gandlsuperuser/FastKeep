@@ -22,8 +22,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Search, Pencil, Trash2, Eye } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Eye, FileText, CheckCircle2 } from "lucide-react";
 import { CustomerForm } from "@/components/customers/customer-form";
+import { CustomerDocumentModal } from "@/components/customers/customer-document-modal";
+import { cn } from "@/lib/utils";
 
 interface Customer {
   id: string;
@@ -32,6 +34,12 @@ interface Customer {
   phone: string | null;
   paymentTerms: string | null;
   creditLimit: number | null;
+  w9Url?: string | null;
+  w9Name?: string | null;
+  w9UploadedAt?: string | null;
+  salesPermitUrl?: string | null;
+  salesPermitName?: string | null;
+  salesPermitUploadedAt?: string | null;
   createdAt: string;
   invoices: Array<{ status: string; total: number }>;
 }
@@ -45,6 +53,7 @@ export default function CustomersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [selectedDocCustomer, setSelectedDocCustomer] = useState<Customer | null>(null);
 
   const fetchCustomers = async () => {
     setLoading(true);
@@ -166,6 +175,7 @@ export default function CustomersPage() {
               <TableHead>Email</TableHead>
               <TableHead>Phone</TableHead>
               <TableHead>Payment Terms</TableHead>
+              <TableHead>Tax Documents</TableHead>
               <TableHead>Credit Limit</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -173,13 +183,13 @@ export default function CustomersPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center">
+                <TableCell colSpan={7} className="text-center">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : customers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center">
+                <TableCell colSpan={7} className="text-center">
                   No customers found
                 </TableCell>
               </TableRow>
@@ -198,12 +208,55 @@ export default function CustomersPage() {
                   <TableCell>{customer.phone || "-"}</TableCell>
                   <TableCell>{customer.paymentTerms || "-"}</TableCell>
                   <TableCell>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDocCustomer(customer)}
+                        className={cn(
+                          "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors border",
+                          customer.w9Url
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800"
+                            : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
+                        )}
+                        title={customer.w9Url ? "W-9 Form Uploaded (Click to view/manage)" : "W-9 Form Missing (Click to upload)"}
+                      >
+                        {customer.w9Url && <CheckCircle2 className="h-3 w-3" />}
+                        W-9
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDocCustomer(customer)}
+                        className={cn(
+                          "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors border",
+                          customer.salesPermitUrl
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800"
+                            : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
+                        )}
+                        title={customer.salesPermitUrl ? "Sales Permit Uploaded (Click to view/manage)" : "Sales Permit Missing (Click to upload)"}
+                      >
+                        {customer.salesPermitUrl && <CheckCircle2 className="h-3 w-3" />}
+                        Permit
+                      </button>
+                    </div>
+                  </TableCell>
+                  <TableCell>
                     {customer.creditLimit
                       ? `$${customer.creditLimit.toLocaleString()}`
                       : "-"}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end items-center gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedDocCustomer(customer)}
+                        className="text-xs h-8 text-primary border-primary/30 hover:bg-primary/5 mr-1"
+                        title="Upload or manage W-9 / Sales Permit documents"
+                      >
+                        <FileText className="h-3.5 w-3.5 mr-1" />
+                        Docs
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -238,6 +291,19 @@ export default function CustomersPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Customer W-9 & Sales Permit Document Management Modal */}
+      {selectedDocCustomer && (
+        <CustomerDocumentModal
+          customer={selectedDocCustomer}
+          isOpen={!!selectedDocCustomer}
+          onClose={() => setSelectedDocCustomer(null)}
+          onSuccess={(updated) => {
+            fetchCustomers();
+            setSelectedDocCustomer(updated);
+          }}
+        />
+      )}
 
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2">

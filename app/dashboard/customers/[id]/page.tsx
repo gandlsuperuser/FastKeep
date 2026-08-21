@@ -21,8 +21,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Pencil, Mail, Phone, MapPin, Download } from "lucide-react";
+import { ArrowLeft, Pencil, Mail, Phone, MapPin, Download, FileText, Upload, CheckCircle2, Building2, Eye, Trash2, FileCheck } from "lucide-react";
 import { CustomerForm } from "@/components/customers/customer-form";
+import { CustomerDocumentModal } from "@/components/customers/customer-document-modal";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +43,13 @@ interface Customer {
   creditLimit: number | null;
   taxId: string | null;
   notes: string | null;
+  w9Url?: string | null;
+  w9Name?: string | null;
+  w9UploadedAt?: string | Date | null;
+  salesPermitUrl?: string | null;
+  salesPermitName?: string | null;
+  salesPermitUploadedAt?: string | Date | null;
+  documents?: any;
   outstandingBalance: number;
   totalInvoices: number;
   totalPaid: number;
@@ -69,6 +77,7 @@ export default function CustomerDetailPage() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDocDialogOpen, setIsDocDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchCustomer();
@@ -384,7 +393,11 @@ export default function CustomerDetailPage() {
             <p className="text-muted-foreground">Customer Details</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={() => setIsDocDialogOpen(true)}>
+            <FileText className="mr-2 h-4 w-4" />
+            Tax Documents (W-9 / Permit)
+          </Button>
           <Button variant="outline" onClick={handleDownloadDetails}>
             <Download className="mr-2 h-4 w-4" />
             Download Details
@@ -415,7 +428,189 @@ export default function CustomerDetailPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Customer Document Management Modal */}
+      <CustomerDocumentModal
+        customer={customer}
+        isOpen={isDocDialogOpen}
+        onClose={() => setIsDocDialogOpen(false)}
+        onSuccess={() => {
+          fetchCustomer();
+          setIsDocDialogOpen(false);
+        }}
+      />
+
       <div className="grid gap-6 md:grid-cols-2">
+        {/* Tax & Legal Documents Card */}
+        <Card className="md:col-span-2 border-primary/20 bg-card">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileCheck className="h-5 w-5 text-primary" />
+                <CardTitle className="text-lg">Tax & Legal Documents</CardTitle>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsDocDialogOpen(true)}
+                className="text-xs h-8"
+              >
+                <Upload className="h-3.5 w-3.5 mr-1" />
+                Upload / Manage Documents
+              </Button>
+            </div>
+            <CardDescription>
+              W-9 tax identification form and state sales tax / resale exemption certificates
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* W-9 Form Box */}
+              <div className="p-4 rounded-xl border bg-muted/20 flex flex-col justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-sm flex items-center gap-1.5">
+                      <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      IRS Form W-9
+                    </span>
+                    {customer.w9Url ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Uploaded
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800">
+                        Missing
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Taxpayer identification number & certification
+                  </p>
+                </div>
+
+                {customer.w9Url ? (
+                  <div className="space-y-2 pt-2 border-t text-xs">
+                    <div className="flex items-center justify-between text-muted-foreground">
+                      <span className="truncate font-mono max-w-[160px]">
+                        {customer.w9Name || "w9_document.pdf"}
+                      </span>
+                      <span>
+                        {customer.w9UploadedAt
+                          ? new Date(customer.w9UploadedAt).toLocaleDateString()
+                          : "Uploaded"}
+                      </span>
+                    </div>
+                    <div className="flex gap-1.5 pt-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsDocDialogOpen(true)}
+                        className="text-xs h-7 flex-1"
+                      >
+                        <Eye className="h-3 w-3 mr-1" />
+                        View / Download
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsDocDialogOpen(true)}
+                        className="text-xs h-7"
+                      >
+                        Replace
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsDocDialogOpen(true)}
+                    className="text-xs h-8 w-full mt-2"
+                  >
+                    <Upload className="h-3.5 w-3.5 mr-1" />
+                    Upload W-9
+                  </Button>
+                )}
+              </div>
+
+              {/* Sales Permit Box */}
+              <div className="p-4 rounded-xl border bg-muted/20 flex flex-col justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-sm flex items-center gap-1.5">
+                      <Building2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      Sales Tax Permit
+                    </span>
+                    {customer.salesPermitUrl ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Uploaded
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800">
+                        Missing
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    State sales tax license / resale exemption certificate
+                  </p>
+                </div>
+
+                {customer.salesPermitUrl ? (
+                  <div className="space-y-2 pt-2 border-t text-xs">
+                    <div className="flex items-center justify-between text-muted-foreground">
+                      <span className="truncate font-mono max-w-[160px]">
+                        {customer.salesPermitName || "sales_permit.pdf"}
+                      </span>
+                      <span>
+                        {customer.salesPermitUploadedAt
+                          ? new Date(customer.salesPermitUploadedAt).toLocaleDateString()
+                          : "Uploaded"}
+                      </span>
+                    </div>
+                    <div className="flex gap-1.5 pt-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsDocDialogOpen(true)}
+                        className="text-xs h-7 flex-1"
+                      >
+                        <Eye className="h-3 w-3 mr-1" />
+                        View / Download
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsDocDialogOpen(true)}
+                        className="text-xs h-7"
+                      >
+                        Replace
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsDocDialogOpen(true)}
+                    className="text-xs h-8 w-full mt-2"
+                  >
+                    <Upload className="h-3.5 w-3.5 mr-1" />
+                    Upload Sales Permit
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Contact Information */}
         <Card>
           <CardHeader>

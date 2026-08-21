@@ -119,6 +119,13 @@ model Customer {
   prepaidCredit   Decimal? @default(0) @db.Decimal(10, 2) // Manual prepaid credit/adjustment
   taxId           String?
   notes           String?
+  w9Url           String?   @db.Text
+  w9Name          String?
+  w9UploadedAt    DateTime?
+  salesPermitUrl  String?   @db.Text
+  salesPermitName String?
+  salesPermitUploadedAt DateTime?
+  documents       Json?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

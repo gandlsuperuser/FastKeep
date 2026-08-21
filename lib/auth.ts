@@ -35,10 +35,10 @@ const providers: any[] = [
         throw new Error("Email and password are required");
       }
 
-      const email = credentials.email as string;
+      const email = (credentials.email as string).trim().toLowerCase();
       const password = credentials.password as string;
-      const user = await prisma.user.findUnique({
-        where: { email },
+      const user = await prisma.user.findFirst({
+        where: { email: { equals: email, mode: "insensitive" } },
         include: { organization: true },
       });
 
@@ -90,7 +90,6 @@ try {
   adapter = PrismaAdapter(prisma) as any;
 } catch (error) {
   console.warn("Failed to initialize PrismaAdapter:", error);
-  // Adapter is optional for JWT strategy
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -117,10 +116,58 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // Fetch fresh user data on each request
       if (token.email) {
         try {
-          const dbUser = await prisma.user.findUnique({
-            where: { email: token.email },
+          let dbUser = await prisma.user.findFirst({
+            where: { email: { equals: token.email, mode: "insensitive" } },
             include: { organization: true },
           });
+
+          // If user does not exist in DB yet (e.g. OAuth first-time login)
+          if (!dbUser) {
+            let org = await prisma.organization.findFirst();
+            if (!org) {
+              const slug = (token.name || token.email.split("@")[0])
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-|-$/g, "") + "-" + Date.now();
+              org = await prisma.organization.create({
+                data: {
+                  name: `${token.name || "User"}'s Organization`,
+                  slug,
+                  settings: {
+                    taxSettings: { defaultTaxRate: 0, taxInclusive: false },
+                    invoiceSettings: { prefix: "INV", numberFormat: "00000", defaultTerms: "Net 30" },
+                    currency: "USD",
+                    timezone: "UTC",
+                    fiscalYearStart: "01-01",
+                  },
+                },
+              });
+            }
+            dbUser = await prisma.user.create({
+              data: {
+                email: token.email.toLowerCase(),
+                name: token.name || token.email.split("@")[0],
+                image: token.picture || null,
+                role: "ADMIN",
+                organizationId: org.id,
+              },
+              include: { organization: true },
+            });
+          } else if (!dbUser.organizationId) {
+            // Auto-assign organization if missing
+            let org = await prisma.organization.findFirst();
+            if (!org) {
+              const slug = "org-" + Date.now();
+              org = await prisma.organization.create({
+                data: { name: "Default Organization", slug },
+              });
+            }
+            dbUser = await prisma.user.update({
+              where: { id: dbUser.id },
+              data: { organizationId: org.id },
+              include: { organization: true },
+            });
+          }
 
           if (dbUser) {
             token.id = dbUser.id;
@@ -128,8 +175,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             token.organizationId = dbUser.organizationId;
           }
         } catch (error) {
-          console.error("Error fetching user in JWT callback:", error);
-          // Return existing token if database query fails
+          console.error("Error fetching/creating user in JWT callback:", error);
         }
       }
 

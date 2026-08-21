@@ -7,6 +7,7 @@ const organizationUpdateSchema = z.object({
   name: z.string().min(1, "Organization name is required"),
   settings: z
     .object({
+      logoUrl: z.string().optional().or(z.literal("")),
       email: z.string().email().optional().or(z.literal("")),
       phone: z.string().optional().or(z.literal("")),
       address: z
@@ -92,6 +93,12 @@ export async function PATCH(request: Request) {
     // Clean up empty strings in the new settings
     let cleanedSettings = validatedData.settings;
     if (cleanedSettings) {
+      if (cleanedSettings.logoUrl === "") {
+        delete existingSettings.logoUrl;
+      } else if (cleanedSettings.logoUrl !== undefined) {
+        existingSettings.logoUrl = cleanedSettings.logoUrl;
+      }
+
       if (cleanedSettings.email === "") {
         delete cleanedSettings.email;
       } else if (cleanedSettings.email !== undefined) {

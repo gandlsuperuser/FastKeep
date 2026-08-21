@@ -197,4 +197,62 @@ export async function DELETE(
   }
 }
 
+// PATCH - Quick inventory adjustment / partial update
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const body = await request.json();
+
+    const existingProduct = await prisma.product.findFirst({
+      where: {
+        id,
+        organizationId: user.organizationId,
+      },
+    });
+
+    if (!existingProduct) {
+      return NextResponse.json(
+        { error: "Product not found" },
+        { status: 404 }
+      );
+    }
+
+    let newInventory = existingProduct.inventory;
+
+    if (body.action === "add" && typeof body.quantity === "number") {
+      newInventory = (existingProduct.inventory ?? 0) + body.quantity;
+    } else if (body.action === "subtract" && typeof body.quantity === "number") {
+      newInventory = Math.max(0, (existingProduct.inventory ?? 0) - body.quantity);
+    } else if (body.action === "set" && typeof body.quantity === "number") {
+      newInventory = Math.max(0, body.quantity);
+    } else if (typeof body.inventory === "number") {
+      newInventory = Math.max(0, body.inventory);
+    }
+
+    const updatedProduct = await prisma.product.update({
+      where: { id },
+      data: {
+        inventory: newInventory,
+        location: body.location !== undefined ? body.location : existingProduct.location,
+      },
+    });
+
+    return NextResponse.json(updatedProduct);
+  } catch (error) {
+    console.error("Error adjusting inventory:", error);
+    return NextResponse.json(
+      { error: "Failed to adjust inventory" },
+      { status: 500 }
+    );
+  }
+}
+
 

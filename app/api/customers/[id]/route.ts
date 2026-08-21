@@ -26,6 +26,13 @@ const customerSchema = z.object({
   prepaidCredit: z.number().optional(),
   taxId: z.string().optional(),
   notes: z.string().optional(),
+  w9Url: z.string().optional().nullable(),
+  w9Name: z.string().optional().nullable(),
+  w9UploadedAt: z.union([z.string(), z.date()]).optional().nullable(),
+  salesPermitUrl: z.string().optional().nullable(),
+  salesPermitName: z.string().optional().nullable(),
+  salesPermitUploadedAt: z.union([z.string(), z.date()]).optional().nullable(),
+  documents: z.any().optional().nullable(),
 });
 
 // GET - Get single customer
@@ -146,6 +153,26 @@ export async function PUT(
       taxId: validatedData.taxId || null,
       notes: validatedData.notes || null,
     };
+
+    if (validatedData.w9Url !== undefined) {
+      updateData.w9Url = validatedData.w9Url;
+      updateData.w9Name = validatedData.w9Name || null;
+      updateData.w9UploadedAt = validatedData.w9Url
+        ? (validatedData.w9UploadedAt ? new Date(validatedData.w9UploadedAt) : new Date())
+        : null;
+    }
+
+    if (validatedData.salesPermitUrl !== undefined) {
+      updateData.salesPermitUrl = validatedData.salesPermitUrl;
+      updateData.salesPermitName = validatedData.salesPermitName || null;
+      updateData.salesPermitUploadedAt = validatedData.salesPermitUrl
+        ? (validatedData.salesPermitUploadedAt ? new Date(validatedData.salesPermitUploadedAt) : new Date())
+        : null;
+    }
+
+    if (validatedData.documents !== undefined) {
+      updateData.documents = validatedData.documents;
+    }
 
     // Handle prepaidCredit - set to 0 if undefined/null, otherwise use the value
     // Prisma Decimal accepts number, string, or Decimal

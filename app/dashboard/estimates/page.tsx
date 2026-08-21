@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Plus, Search, Eye, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -27,7 +29,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Search, Eye } from "lucide-react";
 import { EstimateForm } from "@/components/estimates/estimate-form";
 import { EstimateStatus } from "@prisma/client";
 
@@ -46,6 +47,7 @@ interface Estimate {
 }
 
 export default function EstimatesPage() {
+  const router = useRouter();
   const [estimates, setEstimates] = useState<Estimate[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -56,6 +58,29 @@ export default function EstimatesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+
+  const handleDuplicateEstimate = async (id: string) => {
+    setDuplicatingId(id);
+    try {
+      const response = await fetch(`/api/estimates/${id}/duplicate`, {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        const newEstimate = await response.json();
+        router.push(`/dashboard/estimates/${newEstimate.id}`);
+      } else {
+        const data = await response.json();
+        alert(data.error || "Failed to duplicate estimate");
+        setDuplicatingId(null);
+      }
+    } catch (error) {
+      console.error("Error duplicating estimate:", error);
+      alert("Failed to duplicate estimate");
+      setDuplicatingId(null);
+    }
+  };
 
   useEffect(() => {
     fetchCustomers();
@@ -238,7 +263,15 @@ export default function EstimatesPage() {
               estimates.map((estimate) => (
                 <TableRow key={estimate.id}>
                   <TableCell className="font-medium">
-                    {estimate.number}
+                    <Button
+                      variant="link"
+                      className="p-0 h-auto font-medium text-primary hover:underline cursor-pointer"
+                      onClick={() => handleDuplicateEstimate(estimate.id)}
+                      disabled={duplicatingId === estimate.id}
+                      title="Duplicate Estimate"
+                    >
+                      {duplicatingId === estimate.id ? "Duplicating..." : estimate.number}
+                    </Button>
                   </TableCell>
                   <TableCell>{estimate.customer.name}</TableCell>
                   <TableCell>
@@ -262,11 +295,19 @@ export default function EstimatesPage() {
                   <TableCell className="text-right font-medium">
                     ${Number(estimate.total).toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" asChild>
+                  <TableCell className="text-right flex items-center justify-end gap-1">
+                    <Button variant="ghost" size="icon" asChild title="View Estimate">
                       <Link href={`/dashboard/estimates/${estimate.id}`}>
                         <Eye className="h-4 w-4" />
                       </Link>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDuplicateEstimate(estimate.id)}
+                      title="Duplicate Estimate"
+                    >
+                      <Copy className="h-4 w-4" />
                     </Button>
                   </TableCell>
                 </TableRow>

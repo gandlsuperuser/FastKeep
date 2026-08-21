@@ -19,8 +19,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Pencil, Package, DollarSign } from "lucide-react";
+import { ArrowLeft, Pencil, Package, DollarSign, FileText, Boxes } from "lucide-react";
 import { ProductForm } from "@/components/products/product-form";
+import { ProductReportModal } from "@/components/products/product-report-modal";
+import { AdjustInventoryModal } from "@/components/products/adjust-inventory-modal";
 import {
   Dialog,
   DialogContent,
@@ -65,6 +67,8 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isAdjustOpen, setIsAdjustOpen] = useState(false);
 
   useEffect(() => {
     fetchProduct();
@@ -120,12 +124,22 @@ export default function ProductDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          {product.type === ProductType.PRODUCT && (
+            <Button
+              variant="outline"
+              onClick={() => setIsAdjustOpen(true)}
+              className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:border-emerald-800 dark:hover:bg-emerald-950/50"
+            >
+              <Boxes className="mr-2 h-4 w-4 text-emerald-600" />
+              Adjust Inventory
+            </Button>
+          )}
           <Button
             variant="outline"
-            onClick={() => setIsEditDialogOpen(true)}
+            onClick={() => setIsReportOpen(true)}
           >
-            <Package className="mr-2 h-4 w-4" />
-            Inventory
+            <FileText className="mr-2 h-4 w-4 text-primary" />
+            Movement Report
           </Button>
           <Button onClick={() => setIsEditDialogOpen(true)}>
             <Pencil className="mr-2 h-4 w-4" />
@@ -311,6 +325,21 @@ export default function ProductDetailPage() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Adjust Inventory Modal */}
+      <AdjustInventoryModal
+        product={product}
+        isOpen={isAdjustOpen}
+        onClose={() => setIsAdjustOpen(false)}
+        onSuccess={fetchProduct}
+      />
+
+      {/* Movement Report Modal */}
+      <ProductReportModal
+        productId={product?.id || null}
+        isOpen={isReportOpen}
+        onClose={() => setIsReportOpen(false)}
+      />
     </div>
   );
 }

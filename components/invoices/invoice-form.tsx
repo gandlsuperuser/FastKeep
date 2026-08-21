@@ -12,8 +12,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { X, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { InvoiceStatus } from "@prisma/client";
+import { extractInvoiceMetadata, combineInvoiceMetadata } from "@/lib/invoice-utils";
+import { LineItemProductSearch } from "@/components/invoices/line-item-product-search";
 
 interface InvoiceItem {
   id?: string;
@@ -39,6 +41,8 @@ interface Invoice {
   notes?: string;
   terms?: string;
   taxRate?: number;
+  shipTo?: string;
+  sideMark?: string;
 }
 
 interface InvoiceFormProps {
@@ -52,8 +56,13 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
   const [error, setError] = useState("");
   const [customers, setCustomers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+
+  const initialNotesParsed = extractInvoiceMetadata(invoice?.notes);
+
   const [formData, setFormData] = useState({
     customerId: invoice?.customerId || "",
+    shipTo: invoice?.shipTo || initialNotesParsed.shipTo || "",
+    sideMark: invoice?.sideMark || initialNotesParsed.sideMark || "",
     date: invoice?.date || new Date().toISOString().split("T")[0],
     dueDate: invoice?.dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
     status: invoice?.status || InvoiceStatus.DRAFT,
@@ -62,7 +71,7 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
     ],
     taxRate: invoice?.taxRate ?? (invoice?.subtotal && invoice?.tax ? (invoice.tax / invoice.subtotal) * 100 : 0),
     discount: invoice?.discount || 0,
-    notes: invoice?.notes || "",
+    notes: invoice?.notes ? initialNotesParsed.notes : "",
     terms: invoice?.terms || "",
   });
 
@@ -82,8 +91,12 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
         return date.toISOString().split("T")[0];
       };
 
+      const parsedNotes = extractInvoiceMetadata(invoice.notes);
+
       setFormData({
         customerId: invoice.customerId || "",
+        shipTo: invoice.shipTo || parsedNotes.shipTo || "",
+        sideMark: invoice.sideMark || parsedNotes.sideMark || "",
         date: formatDate(invoice.date),
         dueDate: formatDate(invoice.dueDate),
         status: invoice.status || InvoiceStatus.DRAFT,
@@ -98,7 +111,7 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
         })) || [{ description: "", quantity: 1, rate: 0, amount: 0 }],
         taxRate: invoice.taxRate ?? (invoice.subtotal && invoice.tax ? (Number(invoice.tax) / Number(invoice.subtotal)) * 100 : 0),
         discount: Number(invoice.discount) || 0,
-        notes: invoice.notes || "",
+        notes: parsedNotes.notes || "",
         terms: invoice.terms || "",
       });
     }
@@ -177,6 +190,31 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
     setFormData({ ...formData, items: newItems });
   };
 
+  const handleProductSelect = (index: number, product: any) => {
+    const newItems = [...formData.items];
+    const currentQty = Number(newItems[index].quantity) > 0 ? Number(newItems[index].quantity) : 1;
+    const price = Number(product.price) || 0;
+
+    newItems[index] = {
+      ...newItems[index],
+      productId: product.id,
+      description: product.name,
+      rate: price,
+      quantity: currentQty,
+      amount: calculateItemAmount(currentQty, price),
+    };
+    setFormData({ ...formData, items: newItems });
+  };
+
+  const handleClearProduct = (index: number) => {
+    const newItems = [...formData.items];
+    newItems[index] = {
+      ...newItems[index],
+      productId: undefined,
+    };
+    setFormData({ ...formData, items: newItems });
+  };
+
   const addItem = () => {
     setFormData({
       ...formData,
@@ -217,6 +255,8 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
         : "/api/invoices";
       const method = invoice?.id ? "PUT" : "POST";
 
+      const combinedNotes = combineInvoiceMetadata(formData.shipTo, formData.sideMark, formData.notes);
+
       const payload = {
         customerId: formData.customerId,
         date: formData.date,
@@ -234,7 +274,7 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
         tax: Number(tax) || 0,
         discount: Number(formData.discount) || 0,
         total: Number(total) || 0,
-        notes: formData.notes || undefined,
+        notes: combinedNotes,
         terms: formData.terms || undefined,
       };
 
@@ -268,9 +308,25 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
           <Label htmlFor="customerId">Customer *</Label>
           <Select
             value={formData.customerId}
-            onValueChange={(value) =>
-              setFormData({ ...formData, customerId: value })
-            }
+            onValueChange={(value) => {
+              const selectedCustomer = customers.find((c) => c.id === value);
+              let defaultShipTo = formData.shipTo;
+              if (selectedCustomer && !formData.shipTo) {
+                const shipAddr = selectedCustomer.shippingAddress || selectedCustomer.billingAddress;
+                if (shipAddr) {
+                  const lines = [
+                    selectedCustomer.name,
+                    shipAddr.street,
+                    [shipAddr.city, shipAddr.state, shipAddr.zip].filter(Boolean).join(", "),
+                    shipAddr.country,
+                  ].filter(Boolean);
+                  defaultShipTo = lines.join("\n");
+                } else if (selectedCustomer.name) {
+                  defaultShipTo = selectedCustomer.name;
+                }
+              }
+              setFormData({ ...formData, customerId: value, shipTo: defaultShipTo });
+            }}
             required
           >
             <SelectTrigger>
@@ -329,51 +385,74 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
         </div>
       </div>
 
+      {/* Shipping & Side Mark Information */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="shipTo">Ship To</Label>
+            <span className="text-xs text-muted-foreground">
+              Shipping recipient & address
+            </span>
+          </div>
+          <Textarea
+            id="shipTo"
+            placeholder="Recipient Name&#10;Street Address&#10;City, State Zip&#10;Country"
+            value={formData.shipTo}
+            onChange={(e) => setFormData({ ...formData, shipTo: e.target.value })}
+            rows={3}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="sideMark">Side Mark</Label>
+            <span className="text-xs text-muted-foreground">
+              Carton / Shipping mark, PO #, Case No.
+            </span>
+          </div>
+          <Textarea
+            id="sideMark"
+            placeholder="e.g., C/NO. 1-50&#10;PO #10429&#10;MADE IN USA"
+            value={formData.sideMark}
+            onChange={(e) => setFormData({ ...formData, sideMark: e.target.value })}
+            rows={3}
+          />
+        </div>
+      </div>
+
       {/* Line Items */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Line Items</h3>
+          <div>
+            <h3 className="text-lg font-semibold">Line Items</h3>
+            <p className="text-xs text-muted-foreground">
+              Type in the Item box to promptly search and select inventory products or enter custom items.
+            </p>
+          </div>
           <Button type="button" variant="outline" size="sm" onClick={addItem}>
             <Plus className="mr-2 h-4 w-4" />
             Add Item
           </Button>
         </div>
-        <div className="border rounded-lg">
-          <div className="grid grid-cols-12 gap-2 p-2 bg-muted font-medium text-sm">
-            <div className="col-span-4">Product/Description</div>
+        <div className="border rounded-lg overflow-visible">
+          <div className="grid grid-cols-12 gap-2 p-2.5 bg-muted font-medium text-sm">
+            <div className="col-span-5">Product / Description</div>
             <div className="col-span-2">Quantity</div>
-            <div className="col-span-2">Rate</div>
-            <div className="col-span-2">Amount</div>
-            <div className="col-span-2"></div>
+            <div className="col-span-2">Rate ($)</div>
+            <div className="col-span-2">Amount ($)</div>
+            <div className="col-span-1 text-center">Action</div>
           </div>
           {formData.items.map((item, index) => (
-            <div key={index} className="grid grid-cols-12 gap-2 p-2 border-t">
-              <div className="col-span-4">
-                <Select
-                  value={item.productId || "custom"}
-                  onValueChange={(value) =>
-                    handleItemChange(index, "productId", value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select product" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="custom">Custom</SelectItem>
-                    {products.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  className="mt-2"
-                  placeholder="Description"
-                  value={item.description}
-                  onChange={(e) =>
-                    handleItemChange(index, "description", e.target.value)
-                  }
+            <div key={index} className="grid grid-cols-12 gap-2 p-2.5 border-t items-start">
+              <div className="col-span-5">
+                <LineItemProductSearch
+                  description={item.description}
+                  productId={item.productId}
+                  products={products}
+                  onSelectProduct={(product) => handleProductSelect(index, product)}
+                  onChangeDescription={(desc) => handleItemChange(index, "description", desc)}
+                  onClearProduct={() => handleClearProduct(index)}
+                  placeholder="Search product or enter description..."
                   required
                 />
               </div>
@@ -401,16 +480,18 @@ export function InvoiceForm({ invoice, onSuccess, onCancel }: InvoiceFormProps) 
                   required
                 />
               </div>
-              <div className="col-span-2 flex items-center">
-                {`$${Number(item.amount).toFixed(2)}`}
+              <div className="col-span-2 flex items-center h-10 font-semibold">
+                ${Number(item.amount).toFixed(2)}
               </div>
-              <div className="col-span-2">
+              <div className="col-span-1 flex justify-center">
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
                   onClick={() => removeItem(index)}
                   disabled={formData.items.length === 1}
+                  className="text-muted-foreground hover:text-destructive"
+                  title="Remove item"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

@@ -120,17 +120,23 @@ export async function POST(request: Request) {
     const body = await request.json();
     const validatedData = estimateSchema.parse(body);
 
-    // Generate estimate number
-    const lastEstimate = await prisma.estimate.findFirst({
+    // Generate unique estimate number
+    const allEstimates = await prisma.estimate.findMany({
       where: { organizationId: user.organizationId },
-      orderBy: { createdAt: "desc" },
+      select: { number: true },
     });
 
-    let estimateNumber = "EST-001";
-    if (lastEstimate) {
-      const lastNumber = parseInt(lastEstimate.number.split("-")[1] || "0");
-      estimateNumber = `EST-${String(lastNumber + 1).padStart(3, "0")}`;
+    let maxNum = 0;
+    for (const est of allEstimates) {
+      const match = est.number.match(/\d+/);
+      if (match) {
+        const num = parseInt(match[0], 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
     }
+    const estimateNumber = `EST-${String(maxNum + 1).padStart(3, "0")}`;
 
     // Create estimate with items
     const estimate = await prisma.estimate.create({

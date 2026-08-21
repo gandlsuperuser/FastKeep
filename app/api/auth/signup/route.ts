@@ -53,6 +53,20 @@ export async function POST(request: Request) {
       data: {
         name: validatedData.organizationName,
         slug,
+        settings: {
+          taxSettings: {
+            defaultTaxRate: 0,
+            taxInclusive: false,
+          },
+          invoiceSettings: {
+            prefix: "INV",
+            numberFormat: "00000",
+            defaultTerms: "Net 30",
+          },
+          currency: "USD",
+          timezone: "UTC",
+          fiscalYearStart: "01-01",
+        },
       },
     });
 
@@ -63,25 +77,6 @@ export async function POST(request: Request) {
         password: hashedPassword,
         organizationId: organization.id,
         role: "ADMIN", // First user is admin
-      },
-    });
-
-    // Create default settings
-    await prisma.settings.create({
-      data: {
-        organizationId: organization.id,
-        taxSettings: {
-          defaultTaxRate: 0,
-          taxInclusive: false,
-        },
-        invoiceSettings: {
-          prefix: "INV",
-          numberFormat: "00000",
-          defaultTerms: "Net 30",
-        },
-        currency: "USD",
-        timezone: "UTC",
-        fiscalYearStart: "01-01",
       },
     });
 

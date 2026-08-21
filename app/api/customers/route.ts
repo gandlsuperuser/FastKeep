@@ -27,6 +27,11 @@ const customerSchema = z.object({
   prepaidCredit: z.number().optional(),
   taxId: z.string().optional(),
   notes: z.string().optional(),
+  w9Url: z.string().optional().nullable(),
+  w9Name: z.string().optional().nullable(),
+  salesPermitUrl: z.string().optional().nullable(),
+  salesPermitName: z.string().optional().nullable(),
+  documents: z.any().optional().nullable(),
 });
 
 // GET - List customers
@@ -116,6 +121,13 @@ export async function POST(request: Request) {
         prepaidCredit: validatedData.prepaidCredit !== undefined ? validatedData.prepaidCredit : 0,
         taxId: validatedData.taxId || null,
         notes: validatedData.notes || null,
+        w9Url: validatedData.w9Url || null,
+        w9Name: validatedData.w9Name || null,
+        w9UploadedAt: validatedData.w9Url ? new Date() : null,
+        salesPermitUrl: validatedData.salesPermitUrl || null,
+        salesPermitName: validatedData.salesPermitName || null,
+        salesPermitUploadedAt: validatedData.salesPermitUrl ? new Date() : null,
+        documents: validatedData.documents || Prisma.JsonNull,
       },
     });
 

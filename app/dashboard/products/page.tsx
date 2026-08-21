@@ -27,8 +27,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Search, Pencil, Trash2, Eye } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Eye, FileText, MoreHorizontal, Boxes, Package, SlidersHorizontal } from "lucide-react";
 import { ProductForm } from "@/components/products/product-form";
+import { ProductReportModal } from "@/components/products/product-report-modal";
+import { AdjustInventoryModal } from "@/components/products/adjust-inventory-modal";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ProductType } from "@prisma/client";
 
 interface Product {
@@ -40,7 +49,8 @@ interface Product {
   cost: number;
   category: string | null;
   inventory: number | null;
-   location: string | null;
+  unit: string | null;
+  location: string | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -55,6 +65,8 @@ export default function ProductsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null);
+  const [selectedReportProductId, setSelectedReportProductId] = useState<string | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
 
   const fetchProducts = async () => {
@@ -277,29 +289,57 @@ export default function ProductsPage() {
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon" asChild>
-                        <Link href={`/dashboard/products/${product.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setEditingProduct(product);
-                          setIsDialogOpen(true);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(product.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                    <div className="flex justify-end">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Open actions</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          {product.type === ProductType.PRODUCT && (
+                            <DropdownMenuItem
+                              onClick={() => setAdjustingProduct(product)}
+                              className="font-medium text-emerald-600 dark:text-emerald-400 cursor-pointer"
+                            >
+                              <Boxes className="mr-2 h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                              Adjust Inventory
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem
+                            onClick={() => setSelectedReportProductId(product.id)}
+                            className="cursor-pointer"
+                          >
+                            <FileText className="mr-2 h-4 w-4 text-primary" />
+                            Movement Report
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild className="cursor-pointer">
+                            <Link href={`/dashboard/products/${product.id}`}>
+                              <Eye className="mr-2 h-4 w-4 text-muted-foreground" />
+                              View Details
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setEditingProduct(product);
+                              setIsDialogOpen(true);
+                            }}
+                            className="cursor-pointer"
+                          >
+                            <Pencil className="mr-2 h-4 w-4 text-muted-foreground" />
+                            Edit Product
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleDelete(product.id)}
+                            className="text-red-600 focus:text-red-600 cursor-pointer"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4 text-red-600" />
+                            Delete Product
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -308,6 +348,21 @@ export default function ProductsPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Adjust Inventory Modal */}
+      <AdjustInventoryModal
+        product={adjustingProduct}
+        isOpen={!!adjustingProduct}
+        onClose={() => setAdjustingProduct(null)}
+        onSuccess={fetchProducts}
+      />
+
+      {/* Movement Report Modal */}
+      <ProductReportModal
+        productId={selectedReportProductId}
+        isOpen={!!selectedReportProductId}
+        onClose={() => setSelectedReportProductId(null)}
+      />
 
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2">

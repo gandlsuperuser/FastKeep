@@ -55,6 +55,9 @@ function LoginForm() {
     signIn(provider, { callbackUrl });
   };
 
+  const isReset = searchParams.get("reset") === "true";
+  const isRegistered = searchParams.get("registered") === "true";
+
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-12">
       <Card className="w-full max-w-md">
@@ -65,6 +68,16 @@ function LoginForm() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {isReset && (
+            <div className="rounded-md bg-emerald-50 p-3 text-sm text-emerald-800 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800/40">
+              Password has been reset successfully. Please sign in with your new password.
+            </div>
+          )}
+          {isRegistered && (
+            <div className="rounded-md bg-emerald-50 p-3 text-sm text-emerald-800 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800/40">
+              Account created successfully. Please sign in.
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>

@@ -46,12 +46,34 @@ export async function getCurrentUser(request?: Request) {
       return null;
     }
 
+    let orgId = session.user.organizationId as string | undefined;
+
+    if (!orgId && session.user.email) {
+      const dbUser = await prisma.user.findFirst({
+        where: { email: { equals: session.user.email, mode: "insensitive" } },
+      });
+      if (dbUser?.organizationId) {
+        orgId = dbUser.organizationId;
+      } else {
+        const firstOrg = await prisma.organization.findFirst();
+        if (firstOrg) {
+          orgId = firstOrg.id;
+          if (dbUser) {
+            await prisma.user.update({
+              where: { id: dbUser.id },
+              data: { organizationId: firstOrg.id },
+            });
+          }
+        }
+      }
+    }
+
     return {
       id: session.user.id as string,
       email: session.user.email as string,
       name: session.user.name as string,
-      role: session.user.role as UserRole,
-      organizationId: session.user.organizationId as string,
+      role: (session.user.role || UserRole.ADMIN) as UserRole,
+      organizationId: (orgId || "") as string,
     };
   } catch (error) {
     console.error("Error getting current user:", error);

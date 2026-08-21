@@ -47,6 +47,8 @@ export async function GET(request: Request) {
     const search = searchParams.get("search") || "";
     const status = searchParams.get("status") as InvoiceStatus | null;
     const customerId = searchParams.get("customerId") || "";
+    const datePreset = searchParams.get("datePreset") || "";
+    const clientDate = searchParams.get("clientDate") || "";
     const startDate = searchParams.get("startDate") || "";
     const endDate = searchParams.get("endDate") || "";
     const page = parseInt(searchParams.get("page") || "1");
@@ -72,13 +74,30 @@ export async function GET(request: Request) {
       where.customerId = customerId;
     }
 
-    if (startDate || endDate) {
+    // Handle precise date filtering
+    if (datePreset === "today") {
+      const todayStr = clientDate || new Date().toISOString().split("T")[0];
+      where.date = {
+        gte: new Date(`${todayStr}T00:00:00.000Z`),
+        lte: new Date(`${todayStr}T23:59:59.999Z`),
+      };
+    } else if (datePreset === "yesterday") {
+      const baseDate = clientDate ? new Date(`${clientDate}T00:00:00.000Z`) : new Date();
+      baseDate.setUTCDate(baseDate.getUTCDate() - 1);
+      const yesterdayStr = baseDate.toISOString().split("T")[0];
+      where.date = {
+        gte: new Date(`${yesterdayStr}T00:00:00.000Z`),
+        lte: new Date(`${yesterdayStr}T23:59:59.999Z`),
+      };
+    } else if (startDate || endDate) {
       where.date = {};
       if (startDate) {
-        where.date.gte = new Date(startDate);
+        const startStr = startDate.includes("T") ? startDate : `${startDate}T00:00:00.000Z`;
+        where.date.gte = new Date(startStr);
       }
       if (endDate) {
-        where.date.lte = new Date(endDate);
+        const endStr = endDate.includes("T") ? endDate : `${endDate}T23:59:59.999Z`;
+        where.date.lte = new Date(endStr);
       }
     }
 
@@ -152,17 +171,23 @@ export async function POST(request: Request) {
     const body = await request.json();
     const validatedData = invoiceSchema.parse(body);
 
-    // Generate invoice number
-    const lastInvoice = await prisma.invoice.findFirst({
+    // Generate unique invoice number
+    const allInvoices = await prisma.invoice.findMany({
       where: { organizationId: user.organizationId },
-      orderBy: { createdAt: "desc" },
+      select: { number: true },
     });
 
-    let invoiceNumber = "INV-001";
-    if (lastInvoice) {
-      const lastNumber = parseInt(lastInvoice.number.split("-")[1] || "0");
-      invoiceNumber = `INV-${String(lastNumber + 1).padStart(3, "0")}`;
+    let maxNum = 0;
+    for (const inv of allInvoices) {
+      const match = inv.number.match(/\d+/);
+      if (match) {
+        const num = parseInt(match[0], 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
     }
+    const invoiceNumber = `INV-${String(maxNum + 1).padStart(3, "0")}`;
 
     // Create invoice with items
     const invoice = await prisma.invoice.create({

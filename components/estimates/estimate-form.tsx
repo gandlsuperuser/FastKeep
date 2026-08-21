@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { X, Plus, Trash2 } from "lucide-react";
 import { EstimateStatus } from "@prisma/client";
+import { LineItemProductSearch } from "@/components/invoices/line-item-product-search";
 
 interface EstimateItem {
   id?: string;
@@ -148,6 +149,31 @@ export function EstimateForm({
     }
 
     newItems[index] = item;
+    setFormData({ ...formData, items: newItems });
+  };
+
+  const handleProductSelect = (index: number, product: any) => {
+    const newItems = [...formData.items];
+    const currentQty = Number(newItems[index].quantity) > 0 ? Number(newItems[index].quantity) : 1;
+    const price = Number(product.price) || 0;
+
+    newItems[index] = {
+      ...newItems[index],
+      productId: product.id,
+      description: product.name,
+      rate: price,
+      quantity: currentQty,
+      amount: calculateItemAmount(currentQty, price),
+    };
+    setFormData({ ...formData, items: newItems });
+  };
+
+  const handleClearProduct = (index: number) => {
+    const newItems = [...formData.items];
+    newItems[index] = {
+      ...newItems[index],
+      productId: undefined,
+    };
     setFormData({ ...formData, items: newItems });
   };
 
@@ -302,51 +328,39 @@ export function EstimateForm({
         </div>
       </div>
 
-      {/* Line Items - Same as invoice form */}
+      {/* Line Items */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Line Items</h3>
+          <div>
+            <h3 className="text-lg font-semibold">Line Items</h3>
+            <p className="text-xs text-muted-foreground">
+              Type in the Item box to promptly search and select inventory products or enter custom items.
+            </p>
+          </div>
           <Button type="button" variant="outline" size="sm" onClick={addItem}>
             <Plus className="mr-2 h-4 w-4" />
             Add Item
           </Button>
         </div>
-        <div className="border rounded-lg">
-          <div className="grid grid-cols-12 gap-2 p-2 bg-muted font-medium text-sm">
-            <div className="col-span-4">Product/Description</div>
+        <div className="border rounded-lg overflow-visible">
+          <div className="grid grid-cols-12 gap-2 p-2.5 bg-muted font-medium text-sm">
+            <div className="col-span-5">Product / Description</div>
             <div className="col-span-2">Quantity</div>
-            <div className="col-span-2">Rate</div>
-            <div className="col-span-2">Amount</div>
-            <div className="col-span-2"></div>
+            <div className="col-span-2">Rate ($)</div>
+            <div className="col-span-2">Amount ($)</div>
+            <div className="col-span-1 text-center">Action</div>
           </div>
           {formData.items.map((item, index) => (
-            <div key={index} className="grid grid-cols-12 gap-2 p-2 border-t">
-              <div className="col-span-4">
-                <Select
-                  value={item.productId || "custom"}
-                  onValueChange={(value) =>
-                    handleItemChange(index, "productId", value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select product" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="custom">Custom</SelectItem>
-                    {products.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  className="mt-2"
-                  placeholder="Description"
-                  value={item.description}
-                  onChange={(e) =>
-                    handleItemChange(index, "description", e.target.value)
-                  }
+            <div key={index} className="grid grid-cols-12 gap-2 p-2.5 border-t items-start">
+              <div className="col-span-5">
+                <LineItemProductSearch
+                  description={item.description}
+                  productId={item.productId}
+                  products={products}
+                  onSelectProduct={(product) => handleProductSelect(index, product)}
+                  onChangeDescription={(desc) => handleItemChange(index, "description", desc)}
+                  onClearProduct={() => handleClearProduct(index)}
+                  placeholder="Search product or enter description..."
                   required
                 />
               </div>
@@ -374,16 +388,18 @@ export function EstimateForm({
                   required
                 />
               </div>
-              <div className="col-span-2 flex items-center">
-                ${item.amount.toFixed(2)}
+              <div className="col-span-2 flex items-center h-10 font-semibold">
+                ${Number(item.amount).toFixed(2)}
               </div>
-              <div className="col-span-2">
+              <div className="col-span-1 flex justify-center">
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
                   onClick={() => removeItem(index)}
                   disabled={formData.items.length === 1}
+                  className="text-muted-foreground hover:text-destructive"
+                  title="Remove item"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

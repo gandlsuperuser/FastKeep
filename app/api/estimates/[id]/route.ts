@@ -46,6 +46,7 @@ export async function GET(
       },
       include: {
         customer: true,
+        organization: true,
         items: {
           include: {
             product: true,
@@ -276,6 +277,74 @@ export async function POST(
       { error: "Failed to convert estimate" },
       { status: 500 }
     );
+  }
+}
+
+// PATCH - Update estimate status
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const { id } = await params;
+    const body = await request.json();
+
+    if (!body.status || !Object.values(EstimateStatus).includes(body.status)) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    }
+
+    const existingEstimate = await prisma.estimate.findFirst({
+      where: { id: id, organizationId: user.organizationId },
+    });
+
+    if (!existingEstimate) {
+      return NextResponse.json({ error: "Estimate not found" }, { status: 404 });
+    }
+
+    const updated = await prisma.estimate.update({
+      where: { id: id },
+      data: { status: body.status },
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("Error updating estimate status:", error);
+    return NextResponse.json({ error: "Failed to update estimate status" }, { status: 500 });
+  }
+}
+
+// DELETE - Delete estimate
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const { id } = await params;
+
+    const existingEstimate = await prisma.estimate.findFirst({
+      where: { id: id, organizationId: user.organizationId },
+    });
+
+    if (!existingEstimate) {
+      return NextResponse.json({ error: "Estimate not found" }, { status: 404 });
+    }
+
+    await prisma.estimate.delete({
+      where: { id: id },
+    });
+
+    return NextResponse.json({ message: "Estimate deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting estimate:", error);
+    return NextResponse.json({ error: "Failed to delete estimate" }, { status: 500 });
   }
 }
 
