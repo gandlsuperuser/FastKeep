@@ -34,7 +34,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Search, Eye, Pencil, Settings, GripVertical, ChevronUp, ChevronDown, Calendar } from "lucide-react";
+import { Plus, Search, Eye, Pencil, Settings, GripVertical, ChevronUp, ChevronDown, Calendar, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { InvoiceForm } from "@/components/invoices/invoice-form";
 import { InvoiceStatus } from "@prisma/client";
 import { cn } from "@/lib/utils";
@@ -75,57 +75,47 @@ interface Invoice {
 }
 
 type ColumnKey =
-  | "date"
   | "number"
   | "customer"
   | "customerEmail"
-  | "status"
+  | "date"
   | "itemsCount"
   | "subtotal"
   | "tax"
   | "amount"
   | "paidAmount"
   | "balance"
+  | "status"
   | "actions";
 
 interface ColumnDef {
   key: ColumnKey;
   label: string;
   defaultVisible: boolean;
-  align?: "left" | "right";
+  align?: "left" | "right" | "center";
 }
 
 const ALL_COLUMNS: ColumnDef[] = [
-  { key: "date", label: "Date", defaultVisible: true, align: "left" },
   { key: "number", label: "Invoice #", defaultVisible: true, align: "left" },
   { key: "customer", label: "Customer", defaultVisible: true, align: "left" },
-  { key: "customerEmail", label: "Customer Email", defaultVisible: false, align: "left" },
-  { key: "status", label: "Status", defaultVisible: true, align: "left" },
-  { key: "itemsCount", label: "Items", defaultVisible: false, align: "left" },
+  { key: "customerEmail", label: "Email", defaultVisible: false, align: "left" },
+  { key: "date", label: "Date", defaultVisible: true, align: "left" },
+  { key: "itemsCount", label: "Items", defaultVisible: false, align: "center" },
   { key: "subtotal", label: "Subtotal", defaultVisible: false, align: "right" },
   { key: "tax", label: "Tax", defaultVisible: false, align: "right" },
   { key: "amount", label: "Total Amount", defaultVisible: true, align: "right" },
-  { key: "paidAmount", label: "Paid Amount", defaultVisible: false, align: "right" },
-  { key: "balance", label: "Balance Due", defaultVisible: false, align: "right" },
+  { key: "paidAmount", label: "Paid", defaultVisible: true, align: "right" },
+  { key: "balance", label: "Balance Due", defaultVisible: true, align: "right" },
+  { key: "status", label: "Status", defaultVisible: true, align: "left" },
   { key: "actions", label: "Actions", defaultVisible: true, align: "right" },
 ];
 
-const DEFAULT_COLUMN_ORDER: ColumnKey[] = ALL_COLUMNS.map((c) => c.key);
+const DEFAULT_VISIBLE_COLUMNS: Record<ColumnKey, boolean> = ALL_COLUMNS.reduce(
+  (acc, col) => ({ ...acc, [col.key]: col.defaultVisible }),
+  {} as Record<ColumnKey, boolean>
+);
 
-const DEFAULT_VISIBLE_COLUMNS: Record<ColumnKey, boolean> = {
-  date: true,
-  number: true,
-  customer: true,
-  customerEmail: false,
-  status: true,
-  itemsCount: false,
-  subtotal: false,
-  tax: false,
-  amount: true,
-  paidAmount: false,
-  balance: false,
-  actions: true,
-};
+const DEFAULT_COLUMN_ORDER: ColumnKey[] = ALL_COLUMNS.map((c) => c.key);
 
 const STORAGE_KEY = "fastkeep_invoice_columns_preferences_v2";
 const STORAGE_ORDER_KEY = "fastkeep_invoice_columns_order_v2";
@@ -149,6 +139,20 @@ export default function InvoicesPage() {
   const [columnOrder, setColumnOrder] = useState<ColumnKey[]>(DEFAULT_COLUMN_ORDER);
   const [draggedCol, setDraggedCol] = useState<ColumnKey | null>(null);
   const [dragOverCol, setDragOverCol] = useState<ColumnKey | null>(null);
+
+  // Sorting state
+  const [sortBy, setSortBy] = useState<ColumnKey | null>("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  const handleSort = (key: ColumnKey) => {
+    if (key === "actions") return;
+    if (sortBy === key) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(key);
+      setSortOrder(key === "date" || key === "amount" || key === "subtotal" ? "desc" : "asc");
+    }
+  };
 
   useEffect(() => {
     try {
@@ -234,6 +238,84 @@ export default function InvoicesPage() {
   }, [columnOrder, visibleColumns]);
 
   const visibleColumnCount = orderedVisibleColumns.length;
+
+  const sortedInvoices = useMemo(() => {
+    if (!sortBy) return invoices;
+
+    return [...invoices].sort((a, b) => {
+      let comparison = 0;
+
+      switch (sortBy) {
+        case "date": {
+          const timeA = new Date(a.date).getTime();
+          const timeB = new Date(b.date).getTime();
+          comparison = timeA - timeB;
+          break;
+        }
+        case "number": {
+          comparison = (a.number || "").localeCompare(b.number || "", undefined, {
+            numeric: true,
+            sensitivity: "base",
+          });
+          break;
+        }
+        case "customer": {
+          comparison = (a.customer?.name || "").localeCompare(b.customer?.name || "");
+          break;
+        }
+        case "customerEmail": {
+          comparison = (a.customer?.email || "").localeCompare(b.customer?.email || "");
+          break;
+        }
+        case "status": {
+          comparison = (a.status || "").localeCompare(b.status || "");
+          break;
+        }
+        case "itemsCount": {
+          const countA = a.items?.length || 0;
+          const countB = b.items?.length || 0;
+          comparison = countA - countB;
+          break;
+        }
+        case "subtotal": {
+          const subtotalA = Number(a.subtotal || a.total || 0);
+          const subtotalB = Number(b.subtotal || b.total || 0);
+          comparison = subtotalA - subtotalB;
+          break;
+        }
+        case "tax": {
+          const taxA = Number(a.tax || 0);
+          const taxB = Number(b.tax || 0);
+          comparison = taxA - taxB;
+          break;
+        }
+        case "amount": {
+          const amountA = Number(a.total || 0);
+          const amountB = Number(b.total || 0);
+          comparison = amountA - amountB;
+          break;
+        }
+        case "paidAmount": {
+          const paidA = (a.payments || []).reduce((s, p) => s + Number(p.amount), 0);
+          const paidB = (b.payments || []).reduce((s, p) => s + Number(p.amount), 0);
+          comparison = paidA - paidB;
+          break;
+        }
+        case "balance": {
+          const paidA = (a.payments || []).reduce((s, p) => s + Number(p.amount), 0);
+          const paidB = (b.payments || []).reduce((s, p) => s + Number(p.amount), 0);
+          const balA = Math.max(0, Number(a.total) - paidA);
+          const balB = Math.max(0, Number(b.total) - paidB);
+          comparison = balA - balB;
+          break;
+        }
+        default:
+          comparison = 0;
+      }
+
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
+  }, [invoices, sortBy, sortOrder]);
 
   useEffect(() => {
     fetchCustomers();
@@ -734,12 +816,36 @@ export default function InvoicesPage() {
                   >
                     <div
                       className={cn(
-                        "flex items-center gap-1 inline-flex",
+                        "flex items-center gap-1.5 inline-flex",
                         col.align === "right" && "flex-row-reverse"
                       )}
                     >
                       <GripVertical className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-muted-foreground shrink-0 transition-colors" />
-                      <span>{col.label}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSort(colKey);
+                        }}
+                        className={cn(
+                          "flex items-center gap-1 font-semibold hover:text-foreground transition-colors cursor-pointer text-xs",
+                          sortBy === colKey ? "text-foreground font-bold" : "text-muted-foreground"
+                        )}
+                        title={`Sort by ${col.label}`}
+                      >
+                        <span>{col.label}</span>
+                        {colKey !== "actions" && (
+                          sortBy === colKey ? (
+                            sortOrder === "asc" ? (
+                              <ArrowUp className="h-3.5 w-3.5 text-primary shrink-0" />
+                            ) : (
+                              <ArrowDown className="h-3.5 w-3.5 text-primary shrink-0" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="h-3 w-3 opacity-30 group-hover:opacity-70 shrink-0" />
+                          )
+                        )}
+                      </button>
                     </div>
                   </TableHead>
                 );
@@ -753,14 +859,14 @@ export default function InvoicesPage() {
                   Loading...
                 </TableCell>
               </TableRow>
-            ) : invoices.length === 0 ? (
+            ) : sortedInvoices.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={visibleColumnCount || 1} className="text-center">
                   No invoices found
                 </TableCell>
               </TableRow>
             ) : (
-              invoices.map((invoice) => {
+              sortedInvoices.map((invoice) => {
                 const paidAmount = invoice.payments?.reduce(
                   (sum, p) => sum + Number(p.amount),
                   0

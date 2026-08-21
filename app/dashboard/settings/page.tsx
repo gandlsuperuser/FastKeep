@@ -11,8 +11,9 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Save, Building2, Upload, Trash2, Image as ImageIcon, Database, RefreshCw, HardDrive, AlertTriangle, CheckCircle2, Server, Layers } from "lucide-react";
+import { Save, Building2, Upload, Trash2, Image as ImageIcon, Database, RefreshCw, HardDrive, AlertTriangle, CheckCircle2, Server, Layers, UserPlus, Users, Shield, Pencil, Key } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { UserManagementModal, OrgUser } from "@/components/settings/user-management-modal";
 
 interface OrganizationSettings {
   logoUrl?: string;
@@ -73,6 +74,12 @@ export default function SettingsPage() {
   const [loadingDbUsage, setLoadingDbUsage] = useState(false);
   const [showTableBreakdown, setShowTableBreakdown] = useState(false);
 
+  // Team & User management state
+  const [users, setUsers] = useState<OrgUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<OrgUser | null>(null);
+
   const [formData, setFormData] = useState({
     name: "",
     logoUrl: "",
@@ -89,7 +96,45 @@ export default function SettingsPage() {
   useEffect(() => {
     fetchOrganization();
     fetchDbUsage();
+    fetchUsers();
   }, []);
+
+  const fetchUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const response = await fetch("/api/organization/users");
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.users || []);
+      }
+    } catch (err) {
+      console.error("Error fetching users:", err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (!confirm(`Are you sure you want to remove ${userName} from this account?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/organization/users/${userId}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        fetchUsers();
+      } else {
+        alert(data.error || "Failed to delete user");
+      }
+    } catch (err) {
+      console.error("Error deleting user:", err);
+      alert("Failed to delete user");
+    }
+  };
 
   const fetchDbUsage = async () => {
     setLoadingDbUsage(true);
@@ -637,6 +682,221 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       </form>
+
+      {/* Team & User Access Management Card */}
+      <Card className="border shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                <Users className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  Team & User Access
+                  <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-muted text-muted-foreground border">
+                    {users.length} {users.length === 1 ? "Member" : "Members"}
+                  </span>
+                </CardTitle>
+                <CardDescription>
+                  Manage team members, roles, and granular functional permissions for this account.
+                </CardDescription>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              onClick={() => {
+                setSelectedUser(null);
+                setIsUserModalOpen(true);
+              }}
+              size="sm"
+              className="text-xs h-8 self-start sm:self-auto"
+            >
+              <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+              Add Team Member
+            </Button>
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          <div className="rounded-md border overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider text-left">
+                    <th className="p-3">User</th>
+                    <th className="p-3">Role</th>
+                    <th className="p-3">Job Title</th>
+                    <th className="p-3">Functional Access</th>
+                    <th className="p-3">Status</th>
+                    <th className="p-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {loadingUsers ? (
+                    <tr>
+                      <td colSpan={6} className="p-6 text-center text-xs text-muted-foreground">
+                        Loading team members...
+                      </td>
+                    </tr>
+                  ) : users.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-6 text-center text-xs text-muted-foreground">
+                        No team members found. Click &quot;Add Team Member&quot; to invite a user.
+                      </td>
+                    </tr>
+                  ) : (
+                    users.map((member) => {
+                      const activeFuncs = Object.entries(member.functions || {})
+                        .filter(([_, active]) => active)
+                        .map(([k]) => k);
+
+                      return (
+                        <tr key={member.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="p-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-xs shrink-0">
+                                {member.name ? member.name.charAt(0).toUpperCase() : "U"}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-semibold text-foreground truncate">
+                                  {member.name || "Unnamed User"}
+                                </div>
+                                <div className="text-xs text-muted-foreground truncate">
+                                  {member.email}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="p-3">
+                            <span
+                              className={cn(
+                                "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border",
+                                member.role === "ADMIN" &&
+                                  "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800",
+                                member.role === "ACCOUNTANT" &&
+                                  "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800",
+                                member.role === "VIEWER" &&
+                                  "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/40 dark:text-slate-300 dark:border-slate-800"
+                              )}
+                            >
+                              {member.role === "ADMIN"
+                                ? "Administrator"
+                                : member.role === "ACCOUNTANT"
+                                ? "Accountant"
+                                : "Viewer / Sales"}
+                            </span>
+                          </td>
+
+                          <td className="p-3 text-xs text-muted-foreground">
+                            {member.jobTitle || "—"}
+                          </td>
+
+                          <td className="p-3">
+                            <div className="flex items-center gap-1 flex-wrap max-w-xs">
+                              {member.role === "ADMIN" ? (
+                                <span className="text-[11px] font-medium text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30 px-2 py-0.5 rounded border border-purple-200 dark:border-purple-800">
+                                  Full System Access
+                                </span>
+                              ) : activeFuncs.length > 0 ? (
+                                activeFuncs.slice(0, 3).map((f) => (
+                                  <span
+                                    key={f}
+                                    className="capitalize text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded border font-mono"
+                                  >
+                                    {f}
+                                  </span>
+                                )).concat(
+                                  activeFuncs.length > 3 ? [
+                                    <span
+                                      key="more"
+                                      className="text-[10px] text-muted-foreground font-mono"
+                                    >
+                                      +{activeFuncs.length - 3} more
+                                    </span>
+                                  ] : []
+                                )
+                              ) : (
+                                <span className="text-[11px] text-muted-foreground">
+                                  No modules
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="p-3">
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 text-xs font-medium",
+                                member.isActive !== false
+                                  ? "text-emerald-600 dark:text-emerald-400"
+                                  : "text-muted-foreground line-through"
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "h-1.5 w-1.5 rounded-full",
+                                  member.isActive !== false
+                                    ? "bg-emerald-500"
+                                    : "bg-muted-foreground"
+                                )}
+                              />
+                              {member.isActive !== false ? "Active" : "Inactive"}
+                            </span>
+                          </td>
+
+                          <td className="p-3 text-right">
+                            <div className="flex justify-end items-center gap-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedUser(member);
+                                  setIsUserModalOpen(true);
+                                }}
+                                className="h-7 text-xs"
+                              >
+                                <Pencil className="h-3 w-3 mr-1" />
+                                Edit
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteUser(member.id, member.name || member.email)}
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                title="Remove team member"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* User Management Modal */}
+      <UserManagementModal
+        user={selectedUser}
+        isOpen={isUserModalOpen}
+        onClose={() => {
+          setIsUserModalOpen(false);
+          setSelectedUser(null);
+        }}
+        onSuccess={() => {
+          fetchUsers();
+        }}
+      />
     </div>
   );
 }

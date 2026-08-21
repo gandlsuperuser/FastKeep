@@ -19,6 +19,9 @@ model User {
   image          String?
   password       String? // Hashed password for email/password auth
   role           UserRole      @default(VIEWER)
+  jobTitle       String?
+  functions      Json? // Specific module permissions: { invoices: boolean, expenses: boolean, products: boolean, customers: boolean, banking: boolean, ledger: boolean, reports: boolean, settings: boolean }
+  isActive       Boolean       @default(true)
   organizationId String
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdAt      DateTime      @default(now())

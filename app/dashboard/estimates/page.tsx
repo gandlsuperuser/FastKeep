@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Eye, Copy } from "lucide-react";
+import { Plus, Search, Eye, Copy, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -46,6 +46,8 @@ interface Estimate {
   };
 }
 
+type SortColumn = "number" | "customer" | "date" | "expiryDate" | "status" | "amount";
+
 export default function EstimatesPage() {
   const router = useRouter();
   const [estimates, setEstimates] = useState<Estimate[]>([]);
@@ -59,6 +61,63 @@ export default function EstimatesPage() {
   const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
   const [customers, setCustomers] = useState<any[]>([]);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+
+  // Sorting state
+  const [sortBy, setSortBy] = useState<SortColumn>("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  const handleSort = (col: SortColumn) => {
+    if (sortBy === col) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(col);
+      setSortOrder(col === "date" || col === "amount" ? "desc" : "asc");
+    }
+  };
+
+  const sortedEstimates = useMemo(() => {
+    if (!sortBy) return estimates;
+
+    return [...estimates].sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case "date": {
+          const timeA = new Date(a.date).getTime();
+          const timeB = new Date(b.date).getTime();
+          comparison = timeA - timeB;
+          break;
+        }
+        case "expiryDate": {
+          const timeA = a.expiryDate ? new Date(a.expiryDate).getTime() : 0;
+          const timeB = b.expiryDate ? new Date(b.expiryDate).getTime() : 0;
+          comparison = timeA - timeB;
+          break;
+        }
+        case "number": {
+          comparison = (a.number || "").localeCompare(b.number || "", undefined, {
+            numeric: true,
+            sensitivity: "base",
+          });
+          break;
+        }
+        case "customer": {
+          comparison = (a.customer?.name || "").localeCompare(b.customer?.name || "");
+          break;
+        }
+        case "status": {
+          comparison = (a.status || "").localeCompare(b.status || "");
+          break;
+        }
+        case "amount": {
+          comparison = Number(a.total || 0) - Number(b.total || 0);
+          break;
+        }
+        default:
+          comparison = 0;
+      }
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
+  }, [estimates, sortBy, sortOrder]);
 
   const handleDuplicateEstimate = async (id: string) => {
     setDuplicatingId(id);
@@ -237,12 +296,122 @@ export default function EstimatesPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Estimate #</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Expiry Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
+              <TableHead>
+                <button
+                  type="button"
+                  onClick={() => handleSort("number")}
+                  className="flex items-center gap-1 font-semibold hover:text-foreground transition-colors cursor-pointer text-xs"
+                  title="Sort by Estimate #"
+                >
+                  <span>Estimate #</span>
+                  {sortBy === "number" ? (
+                    sortOrder === "asc" ? (
+                      <ArrowUp className="h-3.5 w-3.5 text-primary shrink-0" />
+                    ) : (
+                      <ArrowDown className="h-3.5 w-3.5 text-primary shrink-0" />
+                    )
+                  ) : (
+                    <ArrowUpDown className="h-3 w-3 opacity-30 hover:opacity-70 shrink-0" />
+                  )}
+                </button>
+              </TableHead>
+              <TableHead>
+                <button
+                  type="button"
+                  onClick={() => handleSort("customer")}
+                  className="flex items-center gap-1 font-semibold hover:text-foreground transition-colors cursor-pointer text-xs"
+                  title="Sort by Customer"
+                >
+                  <span>Customer</span>
+                  {sortBy === "customer" ? (
+                    sortOrder === "asc" ? (
+                      <ArrowUp className="h-3.5 w-3.5 text-primary shrink-0" />
+                    ) : (
+                      <ArrowDown className="h-3.5 w-3.5 text-primary shrink-0" />
+                    )
+                  ) : (
+                    <ArrowUpDown className="h-3 w-3 opacity-30 hover:opacity-70 shrink-0" />
+                  )}
+                </button>
+              </TableHead>
+              <TableHead>
+                <button
+                  type="button"
+                  onClick={() => handleSort("date")}
+                  className="flex items-center gap-1 font-semibold hover:text-foreground transition-colors cursor-pointer text-xs"
+                  title="Sort by Date"
+                >
+                  <span>Date</span>
+                  {sortBy === "date" ? (
+                    sortOrder === "asc" ? (
+                      <ArrowUp className="h-3.5 w-3.5 text-primary shrink-0" />
+                    ) : (
+                      <ArrowDown className="h-3.5 w-3.5 text-primary shrink-0" />
+                    )
+                  ) : (
+                    <ArrowUpDown className="h-3 w-3 opacity-30 hover:opacity-70 shrink-0" />
+                  )}
+                </button>
+              </TableHead>
+              <TableHead>
+                <button
+                  type="button"
+                  onClick={() => handleSort("expiryDate")}
+                  className="flex items-center gap-1 font-semibold hover:text-foreground transition-colors cursor-pointer text-xs"
+                  title="Sort by Expiry Date"
+                >
+                  <span>Expiry Date</span>
+                  {sortBy === "expiryDate" ? (
+                    sortOrder === "asc" ? (
+                      <ArrowUp className="h-3.5 w-3.5 text-primary shrink-0" />
+                    ) : (
+                      <ArrowDown className="h-3.5 w-3.5 text-primary shrink-0" />
+                    )
+                  ) : (
+                    <ArrowUpDown className="h-3 w-3 opacity-30 hover:opacity-70 shrink-0" />
+                  )}
+                </button>
+              </TableHead>
+              <TableHead>
+                <button
+                  type="button"
+                  onClick={() => handleSort("status")}
+                  className="flex items-center gap-1 font-semibold hover:text-foreground transition-colors cursor-pointer text-xs"
+                  title="Sort by Status"
+                >
+                  <span>Status</span>
+                  {sortBy === "status" ? (
+                    sortOrder === "asc" ? (
+                      <ArrowUp className="h-3.5 w-3.5 text-primary shrink-0" />
+                    ) : (
+                      <ArrowDown className="h-3.5 w-3.5 text-primary shrink-0" />
+                    )
+                  ) : (
+                    <ArrowUpDown className="h-3 w-3 opacity-30 hover:opacity-70 shrink-0" />
+                  )}
+                </button>
+              </TableHead>
+              <TableHead className="text-right">
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("amount")}
+                    className="flex items-center gap-1 font-semibold hover:text-foreground transition-colors cursor-pointer text-xs"
+                    title="Sort by Amount"
+                  >
+                    <span>Amount</span>
+                    {sortBy === "amount" ? (
+                      sortOrder === "asc" ? (
+                        <ArrowUp className="h-3.5 w-3.5 text-primary shrink-0" />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5 text-primary shrink-0" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="h-3 w-3 opacity-30 hover:opacity-70 shrink-0" />
+                    )}
+                  </button>
+                </div>
+              </TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -253,14 +422,14 @@ export default function EstimatesPage() {
                   Loading...
                 </TableCell>
               </TableRow>
-            ) : estimates.length === 0 ? (
+            ) : sortedEstimates.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center">
                   No estimates found
                 </TableCell>
               </TableRow>
             ) : (
-              estimates.map((estimate) => (
+              sortedEstimates.map((estimate) => (
                 <TableRow key={estimate.id}>
                   <TableCell className="font-medium">
                     <Button
