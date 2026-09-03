@@ -1,9 +1,10 @@
 import { Sidebar } from "./sidebar";
 import { Header } from "./header";
+import { AiChatDialog } from "@/components/ai/ai-chat-dialog";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden relative">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:block">
         <Sidebar />
@@ -16,6 +17,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+
+      {/* AI Assistant Chat Floating Widget */}
+      <AiChatDialog />
     </div>
   );
 }
