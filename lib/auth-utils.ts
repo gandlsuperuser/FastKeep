@@ -67,7 +67,6 @@ export async function getCurrentUser(request?: Request) {
         include: { organization: true },
       })) ||
       (await prisma.user.findFirst({
-        where: { organizationId: { not: null } },
         include: { organization: true },
       }));
 
