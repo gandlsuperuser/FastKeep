@@ -20,12 +20,15 @@ import { Sidebar } from "./sidebar";
 export function Header() {
   const { data: session } = useSession();
 
-  const userInitials = session?.user?.name
-    ?.split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2) || "U";
+  const displayName = session?.user?.name || "Mo Li";
+  const displayEmail = session?.user?.email || "gandl.superuser@gmail.com";
+  const userInitials =
+    displayName
+      ?.split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "ML";
 
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
@@ -58,10 +61,10 @@ export function Header() {
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium leading-none">
-                  {session?.user?.name || "User"}
+                  {displayName}
                 </p>
                 <p className="text-xs leading-none text-muted-foreground">
-                  {session?.user?.email}
+                  {displayEmail}
                 </p>
               </div>
             </DropdownMenuLabel>
@@ -74,10 +77,10 @@ export function Header() {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              onClick={() => signOut({ callbackUrl: "/dashboard" })}
               className="text-destructive"
             >
-              Log out
+              Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

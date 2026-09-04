@@ -12,8 +12,8 @@ export function Navigation() {
           <Link href="/dashboard">
             <Button variant="ghost">Dashboard</Button>
           </Link>
-          <Link href="/login">
-            <Button variant="default">Sign In</Button>
+          <Link href="/dashboard">
+            <Button variant="default">Dashboard</Button>
           </Link>
         </div>
       </div>

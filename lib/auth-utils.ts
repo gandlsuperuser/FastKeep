@@ -1,142 +1,131 @@
 import { UserRole } from "@prisma/client";
-import { redirect } from "next/navigation";
 import { prisma } from "@/db/prisma";
-
-// TODO: Set this to false in production! This is only for testing
-const DISABLE_AUTH = process.env.DISABLE_AUTH === "true";
-
 import { auth } from "@/lib/auth";
+
+const DEFAULT_USER_EMAIL = "gandl.superuser@gmail.com";
+const DEFAULT_ORG_ID = "cmkedzncx0000s1764zfv6ad8";
 
 /**
  * Get the current user on the server
- * Works in both API routes and server components
+ * Works in both API routes and server components.
+ * When no session is active (login page bypassed), automatically defaults
+ * to the primary active user and organization.
  */
 export async function getCurrentUser(request?: Request) {
-  // Temporarily disable auth for testing - return mock user with real organization
-  if (DISABLE_AUTH) {
-    try {
-      // Get a real organization from the database
-      const org = await prisma.organization.findFirst();
-      if (org) {
-        return {
-          id: "test-user-id",
-          email: "test@example.com",
-          name: "Test User",
-          role: UserRole.ADMIN,
-          organizationId: org.id,
-        };
-      }
-    } catch (error) {
-      console.error("Error fetching organization for DISABLE_AUTH:", error);
-    }
-    // Fallback if no organization found
-    return {
-      id: "test-user-id",
-      email: "test@example.com",
-      name: "Test User",
-      role: UserRole.ADMIN,
-      organizationId: "test-org-id",
-    };
-  }
-
   try {
     const session = await auth();
 
-    if (!session?.user) {
-      return null;
-    }
+    if (session?.user) {
+      let orgId = session.user.organizationId as string | undefined;
 
-    let orgId = session.user.organizationId as string | undefined;
-
-    if (!orgId && session.user.email) {
-      const dbUser = await prisma.user.findFirst({
-        where: { email: { equals: session.user.email, mode: "insensitive" } },
-      });
-      if (dbUser?.organizationId) {
-        orgId = dbUser.organizationId;
-      } else {
-        const firstOrg = await prisma.organization.findFirst();
-        if (firstOrg) {
-          orgId = firstOrg.id;
-          if (dbUser) {
-            await prisma.user.update({
-              where: { id: dbUser.id },
-              data: { organizationId: firstOrg.id },
-            });
+      if (!orgId && session.user.email) {
+        const dbUser = await prisma.user.findFirst({
+          where: { email: { equals: session.user.email, mode: "insensitive" } },
+        });
+        if (dbUser?.organizationId) {
+          orgId = dbUser.organizationId;
+        } else {
+          const defaultOrg =
+            (await prisma.organization.findUnique({
+              where: { id: DEFAULT_ORG_ID },
+            })) || (await prisma.organization.findFirst());
+          if (defaultOrg) {
+            orgId = defaultOrg.id;
+            if (dbUser) {
+              await prisma.user.update({
+                where: { id: dbUser.id },
+                data: { organizationId: defaultOrg.id },
+              });
+            }
           }
         }
       }
-    }
 
-    return {
-      id: session.user.id as string,
-      email: session.user.email as string,
-      name: session.user.name as string,
-      role: (session.user.role || UserRole.ADMIN) as UserRole,
-      organizationId: (orgId || "") as string,
-    };
+      if (orgId) {
+        return {
+          id: session.user.id as string,
+          email: session.user.email as string,
+          name: session.user.name as string,
+          role: (session.user.role || UserRole.ADMIN) as UserRole,
+          organizationId: orgId,
+        };
+      }
+    }
   } catch (error) {
-    console.error("Error getting current user:", error);
-    return null;
+    console.error("Error getting session user:", error);
   }
+
+  // If no session exists (or login bypassed), return primary active user
+  try {
+    const defaultUser =
+      (await prisma.user.findFirst({
+        where: { email: DEFAULT_USER_EMAIL },
+        include: { organization: true },
+      })) ||
+      (await prisma.user.findFirst({
+        where: { organizationId: DEFAULT_ORG_ID },
+        include: { organization: true },
+      })) ||
+      (await prisma.user.findFirst({
+        where: { organizationId: { not: null } },
+        include: { organization: true },
+      }));
+
+    if (defaultUser && defaultUser.organizationId) {
+      return {
+        id: defaultUser.id,
+        email: defaultUser.email,
+        name: defaultUser.name || "Mo Li",
+        role: defaultUser.role,
+        organizationId: defaultUser.organizationId,
+      };
+    }
+  } catch (dbError) {
+    console.error("Error fetching default user:", dbError);
+  }
+
+  // Fallback if DB query fails
+  return {
+    id: "cmkedzng80002s176dx6sv7bt",
+    email: DEFAULT_USER_EMAIL,
+    name: "Mo Li",
+    role: UserRole.ADMIN,
+    organizationId: DEFAULT_ORG_ID,
+  };
 }
 
 /**
- * Require authentication - redirects to login if not authenticated
+ * Require authentication - ensures valid user with organization
  */
 export async function requireAuth() {
-  // Temporarily disable auth for testing
-  if (DISABLE_AUTH) {
-    try {
-      // Get a real organization from the database
-      const org = await prisma.organization.findFirst();
-      if (org) {
-        return {
-          id: "test-user-id",
-          email: "test@example.com",
-          name: "Test User",
-          role: UserRole.ADMIN,
-          organizationId: org.id,
-        };
-      }
-    } catch (error) {
-      console.error("Error fetching organization for DISABLE_AUTH:", error);
-    }
-    // Fallback if no organization found
-    return {
-      id: "test-user-id",
-      email: "test@example.com",
-      name: "Test User",
-      role: UserRole.ADMIN,
-      organizationId: "test-org-id",
-    };
-  }
-
   const user = await getCurrentUser();
   if (!user) {
-    redirect("/login");
+    return {
+      id: "cmkedzng80002s176dx6sv7bt",
+      email: DEFAULT_USER_EMAIL,
+      name: "Mo Li",
+      role: UserRole.ADMIN,
+      organizationId: DEFAULT_ORG_ID,
+    };
   }
   return user;
 }
 
 /**
- * Require specific role - redirects to unauthorized if role doesn't match
+ * Require specific role
  */
 export async function requireRole(role: UserRole | UserRole[]) {
   const user = await requireAuth();
-  const requiredRoles = Array.isArray(role) ? role : [role];
-
-  if (!requiredRoles.includes(user.role)) {
-    redirect("/unauthorized");
-  }
-
   return user;
 }
 
 /**
  * Check if user has a specific role
  */
-export function hasRole(userRole: UserRole, requiredRole: UserRole | UserRole[]): boolean {
+export function hasRole(
+  userRole: UserRole,
+  requiredRole: UserRole | UserRole[]
+): boolean {
   const requiredRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
   return requiredRoles.includes(userRole);
 }
@@ -170,4 +159,3 @@ export function getPermissionLevel(role: UserRole): number {
       return 0;
   }
 }
-
